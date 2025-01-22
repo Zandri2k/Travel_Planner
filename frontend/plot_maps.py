@@ -50,7 +50,7 @@ class TripMap(Maps):
         m = self._create_map()
         map_html = m._repr_html_()
         styled_html = f"""
-        <div style="border: 5px solid #20265A; border-radius: 10px; ">
+        <div style="border: 5px solid #20265A; border-radius: 3px; ">
             {map_html}
         </div>
         """
