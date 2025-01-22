@@ -14,6 +14,8 @@ def set_mode(i):
 
 def main():
 
+    st.markdown("""<span style='color: #20265A;font-size: 60px; font-weight: bold'>Travel Planner</span>""", unsafe_allow_html=True)
+
     if st.session_state.stage == 0:
         st.markdown("# Reseplanerare")
         time_table, travel_planner = st.columns(2)
@@ -38,8 +40,14 @@ def main():
         middle.empty()
         title.markdown("# Reseplanerare")
         switch.button("Tidstabell", on_click=set_mode, args=[1], use_container_width=True)
-
-    trip_map.display_map()
+        desc = st.container(border=True)
+        desc.markdown(
+            "Här visas stopp och andra detaljer för en resa mellan två valda resmål"
+        )
+        start_dest, end_dest = st.columns(2)
+        start_name = start_dest.text_input("Från", placeholder="Stad/Hållplats/Station")
+        end_name = end_dest.text_input("Till", placeholder="Stad/Hållplats/Station")
+        trip_map.display_map()
 
 
 if __name__ == "__main__":
