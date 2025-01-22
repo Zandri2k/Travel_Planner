@@ -1,6 +1,9 @@
 import streamlit as st
 from plot_maps import TripMap
 from utils.constants import StationIds
+from pathlib import Path 
+
+print(Path.cwd())
 
 trip_map = TripMap(
     origin_id=StationIds.MALMO.value, destination_id=StationIds.UMEA.value
