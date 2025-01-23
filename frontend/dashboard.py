@@ -9,8 +9,15 @@ trip_map = TripMap(
 if 'stage' not in st.session_state:
     st.session_state.stage = 0
 
+if 'search' not in st.session_state:
+    st.session_state.search = "default"
+
 def set_mode(i):
     st.session_state.stage = i
+
+def set_search(start, end):
+    st.session_state.search = f"{start}, {end}"
+
 
 def main():
 
@@ -47,6 +54,9 @@ def main():
         start_dest, end_dest = st.columns(2)
         start_name = start_dest.text_input("Från", placeholder="Stad/Hållplats/Station")
         end_name = end_dest.text_input("Till", placeholder="Stad/Hållplats/Station")
+        st.button("Sök resa", on_click=set_search(start_name, end_name))
+        if st.session_state.search != "default":
+            st.markdown(st.session_state.search)
         trip_map.display_map()
 
 
