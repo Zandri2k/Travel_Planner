@@ -1,17 +1,17 @@
-from dotenv import load_dotenv
 import os
+
 import requests
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class ResRobot:
-
     API_KEY = os.getenv("API_KEY")
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """origing_id and destination_id can be found from Stop lookup API"""
-        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"
+        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"  # noqa: E501
 
         try:
             response = requests.get(url)
