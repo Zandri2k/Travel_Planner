@@ -1,5 +1,6 @@
 import streamlit as st
 from plot_maps import TripMap
+
 from utils.constants import StationIds
 
 trip_map = TripMap(
@@ -23,7 +24,11 @@ def set_search(start, end):
 
 def main():
     st.markdown(
-        """<span style='color: #20265A;font-size: 60px; font-weight: bold'>Travel Planner</span>""",
+        """<span style='
+        color: #20265A;
+        font-size: 60px;
+        font-weight: bold'>Travel Planner</span>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -37,7 +42,11 @@ def main():
             "Reseplanerare", use_container_width=True, on_click=set_mode, args=[2]
         )
         st.markdown(
-            "Den här dashboarden syftar till att både utforska data för olika platser, men ska även fungera som en reseplanerare där du får välja och planera din resa."
+            (
+                "Den här dashboarden syftar till att både utforska data för olika "
+                "platser, men ska även fungera som en reseplanerare där du får "
+                "välja och planera din resa."
+            )
         )
 
     if st.session_state.stage == 1:
@@ -49,13 +58,16 @@ def main():
         )
         desc = st.container(border=True)
         desc.markdown(
-            "Här visas tider för kommande resor till och från en specifierad hållplats/station."
+            (
+                "Här visas tider för kommande resor till "
+                "och från en specifierad hållplats/station."
+            )
         )
         checks = st.columns(7)
         with checks[0]:
-            from_dest = st.checkbox("Från", True)
+            st.checkbox("Från", True)
         with checks[1]:
-            to_dest = st.checkbox("Till", True)
+            st.checkbox("Till", True)
         test = st.empty()
         station_name = test.text_input(
             "Från/Till", placeholder="Stad/Hållplats/Station"
