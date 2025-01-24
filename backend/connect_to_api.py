@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os
 import requests
+import googlemaps
+from datetime import datetime
 
 load_dotenv()
 
@@ -9,6 +11,8 @@ class ResRobot:
     API_KEY2 = os.getenv("API_KEY2") # Traffikverket öppet API
     API_KEY3 = os.getenv("API_KEY3") # GTFS Sverige2
     API_KEY4 = os.getenv("API_KEY4") # GTFS Regional Static data
+    API_KEY5 = os.getenv("API_KEY5") # GTFS3 
+    API_KEY6 = os.getenv("API_KEY6") # GoogleMaps
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """Retrieve trip details including all intermediate stops."""
@@ -110,7 +114,7 @@ class ResRobot:
         except requests.exceptions.RequestException as err:
             print(f"Error fetching nearby stops: {err}")
             return []
-
+        
 # resrobot = ResRobot()
 
 # pprint(resrobot.timetable_arrival()["Arrival"][0])
