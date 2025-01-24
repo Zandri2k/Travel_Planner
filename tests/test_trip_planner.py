@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from math import radians, sin, cos, sqrt, atan2
+import folium
 from backend.connect_to_api import ResRobot  # Reuse your existing ResRobot class
-from frontend.plot_maps import TripMap  # Reuse your existing TripMap class
 
 # Initialize ResRobot
 resrobot = ResRobot()
@@ -84,36 +84,39 @@ if start_name and end_name:
     start_id = stop_dict[start_name.split(", ")[0]]
     end_id = stop_dict[end_name.split(", ")[0]]
 
-    # Call the ResRobot API (commented out for now)
-    # trip_data = resrobot.trips(origin_id=start_id, destination_id=end_id)
+    # Fetch trip details using the ResRobot API
+    trip_details = resrobot.trips(origin_id=start_id, destination_id=end_id)
+    
+    if trip_details:
+        st.subheader("Trip Details")
+        st.json(trip_details)  # Display trip details in JSON format
 
-    # if trip_data and "Trip" in trip_data:
-    #     trip_segments = trip_data["Trip"][0]["Leg"]
-    #     trip_stops = []
+        # Extract coordinates for the start and end points
+        start_stop = stops_df[stops_df["stop_id"] == start_id].iloc[0]
+        end_stop = stops_df[stops_df["stop_id"] == end_id].iloc[0]
 
-    #     for segment in trip_segments:
-    #         if "Origin" in segment and "Destination" in segment:
-    #             trip_stops.append({
-    #                 "name": segment["Origin"]["name"],
-    #                 "lat": segment["Origin"]["lat"],
-    #                 "lon": segment["Origin"]["lon"],
-    #                 "time": segment["Origin"]["time"]
-    #             })
-    #             trip_stops.append({
-    #                 "name": segment["Destination"]["name"],
-    #                 "lat": segment["Destination"]["lat"],
-    #                 "lon": segment["Destination"]["lon"],
-    #                 "time": segment["Destination"]["time"]
-    #             })
+        # Create a Folium map
+        m = folium.Map(location=[center_lat, center_lon], zoom_start=10)
 
-    #     # Convert trip stops to a DataFrame
-    #     stops_df = pd.DataFrame(trip_stops).drop_duplicates()
+        # Add markers for start and end points
+        folium.Marker(
+            location=[start_stop["stop_lat"], start_stop["stop_lon"]],
+            popup=f"Start: {start_name}",
+            icon=folium.Icon(color="green")
+        ).add_to(m)
 
-    #     # Pass the DataFrame to `TripMap` and display the map
-    #     trip_map = TripMap(stops_df)
-    #     trip_map.display_map()
+        folium.Marker(
+            location=[end_stop["stop_lat"], end_stop["stop_lon"]],
+            popup=f"End: {end_name}",
+            icon=folium.Icon(color="red")
+        ).add_to(m)
 
-    # else:
-    #     st.error("No trip data available. Check API response.")
+        # Display the map in Streamlit
+        folium_html = m._repr_html_()
+        st.components.v1.html(folium_html, width=700, height=500)
+
+    else:
+        st.error("Failed to fetch trip details. Please check the API connection or try again later.")
+
 elif start_name or end_name:
     st.info("Please select both start and end points.")
