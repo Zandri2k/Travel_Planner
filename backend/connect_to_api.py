@@ -5,7 +5,10 @@ import requests
 load_dotenv()
 
 class ResRobot:
-    API_KEY = os.getenv("API_KEY")
+    API_KEY = os.getenv("API_KEY")  # ResRobot2.1 
+    API_KEY2 = os.getenv("API_KEY2") # Traffikverket öppet API
+    API_KEY3 = os.getenv("API_KEY3") # GTFS Sverige2
+    API_KEY4 = os.getenv("API_KEY4") # GTFS Regional Static data
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """Retrieve trip details including all intermediate stops."""

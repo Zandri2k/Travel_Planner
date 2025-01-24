@@ -12,7 +12,7 @@ def main():
     st.markdown(
         "Den här dashboarden syftar till att både utforska data för olika platser, men ska även fungera som en reseplanerare där du får välja och planera din resa."
     )
-
+    
     trip_map.display_map()
 
 
