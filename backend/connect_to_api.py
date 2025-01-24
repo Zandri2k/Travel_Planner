@@ -1,17 +1,17 @@
-from dotenv import load_dotenv
 import os
+
 import requests
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class ResRobot:
-
     API_KEY = os.getenv("API_KEY")
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """origing_id and destination_id can be found from Stop lookup API"""
-        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"
+        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"  # noqa: E501
 
         try:
             response = requests.get(url)
@@ -37,7 +37,7 @@ class ResRobot:
 
     def timetable_departure(self, location_id=740015565):
         url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}"
-        
+
         response = requests.get(url)
         result = response.json()
         return result
@@ -47,11 +47,11 @@ class ResRobot:
         response = requests.get(url)
         result = response.json()
         return result
-    
+
     def name_from_access_id(self, ext_id):
         """
         Fetch the name of a location given its extId.
-        
+
         Parameters:
         ----------
         ext_id : int or str
@@ -63,7 +63,7 @@ class ResRobot:
             The name of the location, or None if not found.
         """
         url = f"https://api.resrobot.se/v2.1/location.name?input={ext_id}&format=json&accessId={self.API_KEY}"
-        
+
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -77,9 +77,6 @@ class ResRobot:
         except requests.exceptions.RequestException as err:
             print(f"Error fetching name for extId {ext_id}: {err}")
             return None
-
-    
-    
 
 
 # resrobot = ResRobot()
