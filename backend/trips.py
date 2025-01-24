@@ -30,6 +30,7 @@ class TripPlanner:
 
         self.trips = resrobot.trips(origin_id, destination_id).get("Trip")
         self.number_trips = len(self.trips)
+        self.timetable_departure = resrobot.timetable_departure().get("Departure")
 
     def next_available_trip(self) -> pd.DataFrame:
         next_trip = self.trips[0]
@@ -63,6 +64,24 @@ class TripPlanner:
         It returns a list of DataFrame objects, where each item corresponds to a trip
         """
         # TODO: implement this method
+
+    def def_stops_on_trip(self, trip_data):
+        """
+        Calculate the stops on the trip.
+        """
+        try:
+            stops = 0
+            for leg in trip_data.get("LegList", {}).get("Leg", []):
+                stops += len(leg.get("Stops", {}).get("Stop", []))
+            return stops
+        except KeyError as e:
+            print(f"Error processing stops: {e}")
+            return 0
+
+        
+    def get_location_name(self, ext_id):
+        """Fetches the name of a location using the ResRobot API."""
+        return resrobot.name_from_access_id(ext_id)
 
 
 if __name__ == "__main__":

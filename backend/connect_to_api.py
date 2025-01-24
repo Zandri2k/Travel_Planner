@@ -37,6 +37,7 @@ class ResRobot:
 
     def timetable_departure(self, location_id=740015565):
         url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}"
+        
         response = requests.get(url)
         result = response.json()
         return result
@@ -46,6 +47,39 @@ class ResRobot:
         response = requests.get(url)
         result = response.json()
         return result
+    
+    def name_from_access_id(self, ext_id):
+        """
+        Fetch the name of a location given its extId.
+        
+        Parameters:
+        ----------
+        ext_id : int or str
+            The unique identifier (extId) of the location.
+
+        Returns:
+        -------
+        str
+            The name of the location, or None if not found.
+        """
+        url = f"https://api.resrobot.se/v2.1/location.name?input={ext_id}&format=json&accessId={self.API_KEY}"
+        
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+            for stop in data.get("stopLocationOrCoordLocation", []):
+                stop_data = next(iter(stop.values()))
+                if str(stop_data.get("extId")) == str(ext_id):
+                    return stop_data.get("name")
+            return None  # Return None if no matching extId is found
+        except requests.exceptions.RequestException as err:
+            print(f"Error fetching name for extId {ext_id}: {err}")
+            return None
+
+    
+    
 
 
 # resrobot = ResRobot()
