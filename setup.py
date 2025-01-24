@@ -13,7 +13,7 @@ setup(
     """,
     author="Kokchun",
     author_email="YOUR_EMAIL@mail.com",
-    install_requires=["streamlit", "pandas", "folium", "requests", "ipykernel", "python-dotenv"],
+    install_requires=["streamlit", "pandas", "folium", "requests", "ipykernel", "python-dotenv", "flake8", "black"],
     packages=find_packages(exclude=("test*", "explorations")),
     entry_points={"console_scripts": ["dashboard = utils.run_dashboard:run_dashboard"]},
 )
