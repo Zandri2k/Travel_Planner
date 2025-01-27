@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-import folium
 import osmnx as ox
 import networkx as nx
-import numpy as np
-from utils.geo_utils import haversine, filter_stops_within_radius, calculate_midpoint, calculate_zoom_level
-from backend.connect_to_api import ResRobot  # Assuming ResRobot is in backend/connect_to_api.py
+from utils.geo_utils import haversine, filter_stops_within_radius, calculate_midpoint, calculate_zoom_level, interpolate_points
+from backend.connect_to_api import ResRobot
+from frontend.folium import create_folium_map, add_route_to_map, add_marker_to_map, add_small_marker_to_map, display_map_in_streamlit
+from frontend.streamlit_elements import show_departure_timetable
+
 
 # Initialize ResRobot
 resrobot = ResRobot()
@@ -29,19 +30,8 @@ def load_stops(file_path="data/stops.txt"):
 stops_df = load_stops()
 stop_dict = dict(zip(stops_df["stop_name"], stops_df["stop_id"]))
 
-# Function to interpolate points between route coordinates
-def interpolate_points(route_coords, num_points=100):
-    lats = np.array([coord[0] for coord in route_coords])
-    lons = np.array([coord[1] for coord in route_coords])
-    distances = np.cumsum(np.sqrt(np.ediff1d(lats, to_begin=0)**2 + np.ediff1d(lons, to_begin=0)**2))
-    distances = distances / distances[-1]
-    interpolated_lats = np.interp(np.linspace(0, 1, num_points), distances, lats)
-    interpolated_lons = np.interp(np.linspace(0, 1, num_points), distances, lons)
-    return list(zip(interpolated_lats, interpolated_lons))
-
 # Streamlit UI
 st.title("Public Transport Route Planner")
-st.subheader("Plan Your Journey")
 
 # Step 1: Let the user select a city (small selectbox in the corner)
 selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
@@ -50,21 +40,39 @@ selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
 center_lat, center_lon = CITY_CENTERS[selected_city]
 
 # Step 2: Filter stops within a 150km radius of the selected city
-stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon, city_centers=CITY_CENTERS)
+stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
+
+
+
+# Create a layout with three columns: Start Point, Arrow, End Point
+col1, col2, col3 = st.columns([2, 1, 2])
 
 # Step 3: Selectbox for start and end points (empty by default)
-start_name = st.selectbox("Start Point", [""] + stops_within_radius)
-end_name = st.selectbox("End Point", [""] + stops_within_radius)
-
-# Display selected stops
+with col1:
+    start_name = st.selectbox("Start Point", [""] + stops_within_radius)
+    if start_name:
+        st.markdown(f"**Selected Start Point:**<br>{start_name}", unsafe_allow_html=True)
+        
+# Show the timetable only if a start station is selected
 if start_name:
-    st.write(f"Selected Start Point: **{start_name}**")
-if end_name:
-    st.write(f"Selected End Point: **{end_name}**")
+    show_departure_timetable(resrobot, stops_df, start_name)
+
+
+with col2:
+    # Lower the arrow slightly using CSS
+    st.markdown(
+        "<div style='text-align: center; margin-top: 10px; font-size: 40px;'>→</div>",
+        unsafe_allow_html=True
+    )
+
+with col3:
+    end_name = st.selectbox("End Point", [""] + stops_within_radius)
+    if end_name:
+        st.markdown(f"**Selected End Point:**<br>{end_name}", unsafe_allow_html=True)
 
 # Fetch trip details when both points are selected
 if start_name and end_name:
-    st.write(f"Planning trip: **{start_name} → {end_name}**")
+    st.write(f"**Planning trip:** {start_name} → {end_name}")
 
     # Get stop IDs (remove the city part from the formatted name)
     start_id = stop_dict[start_name.split(", ")[0]]
@@ -73,11 +81,15 @@ if start_name and end_name:
     # Fetch the next departure using the ResRobot API
     try:
         trip_details = resrobot.trips(origin_id=start_id, destination_id=end_id)
-        
+
         if trip_details and "Trip" in trip_details and len(trip_details["Trip"]) > 0:
             next_departure = trip_details["Trip"][0]  # Take the first trip (next departure)
-            st.subheader("Next Departure Details")
-            st.json(next_departure)  # Display the next departure details in JSON format
+
+            # Travel information under "Start Point"
+            with col1:
+                with st.expander("ℹ️ **Travel Information**", expanded=False):
+                    st.subheader("Next Departure Details")
+                    st.json(next_departure)  # Display the next departure details in JSON format
 
             # Extract coordinates for the start and end points
             start_stop = stops_df[stops_df["stop_id"] == start_id].iloc[0]
@@ -94,7 +106,7 @@ if start_name and end_name:
             )
 
             # Create a Folium map centered at the midpoint
-            m = folium.Map(location=[midpoint_lat, midpoint_lon], zoom_start=zoom_level)
+            m = create_folium_map(midpoint_lat, midpoint_lon, zoom_level)
 
             # Fetch the road network with higher resolution (no simplification)
             G = ox.graph_from_point((midpoint_lat, midpoint_lon), dist=20000, network_type="drive", simplify=False)
@@ -125,42 +137,25 @@ if start_name and end_name:
                         smoothed_route_coords = interpolate_points(route_coords, num_points=100)
 
                         # Add the smoothed route to the map
-                        folium.PolyLine(
-                            locations=smoothed_route_coords,
-                            color="blue",
-                            weight=5,  # Increase the weight to make the line thicker
-                            opacity=1  # Ensure the opacity is set to 1 for full visibility
-                        ).add_to(m)
+                        add_route_to_map(m, smoothed_route_coords)
 
                         # Add the coordinates to the list of all route coordinates
                         all_route_coords.extend(smoothed_route_coords)
 
             # Add markers for the start and end points
-            folium.Marker(
-                location=[start_stop["stop_lat"], start_stop["stop_lon"]],
-                popup=f"Start: {start_name}",
-                icon=folium.Icon(color="green")
-            ).add_to(m)
-
-            folium.Marker(
-                location=[end_stop["stop_lat"], end_stop["stop_lon"]],
-                popup=f"End: {end_name}",
-                icon=folium.Icon(color="red")
-            ).add_to(m)
+            add_marker_to_map(m, start_stop["stop_lat"], start_stop["stop_lon"], f"Start: {start_name}", "green")
+            add_marker_to_map(m, end_stop["stop_lat"], end_stop["stop_lon"], f"End: {end_name}", "red")
 
             # Add smaller markers for each stop along the route
             for leg in next_departure["LegList"]["Leg"]:
                 if "Stops" in leg and "Stop" in leg["Stops"]:
                     for stop in leg["Stops"]["Stop"]:
-                        folium.Marker(
-                            location=[stop["lat"], stop["lon"]],
-                            popup=f"{stop['name']}<br>{stop.get('arrTime', stop.get('depTime', 'N/A'))}",
-                            icon=folium.Icon(color="blue", icon="circle", prefix="fa", icon_size=(10, 10))  # Smaller icon size
-                        ).add_to(m)
+                        add_small_marker_to_map(m, stop["lat"], stop["lon"], f"{stop['name']}<br>{stop.get('arrTime', stop.get('depTime', 'N/A'))}")
 
-            # Display the map in Streamlit
-            folium_html = m._repr_html_()
-            st.components.v1.html(folium_html, width=700, height=500)
+            # Map under "End Point"
+            with col3:
+                with st.expander("🗺️ **Show Map**", expanded=True):
+                    display_map_in_streamlit(m)
 
         else:
             st.error("No departures found for the selected route. Please try again later.")
