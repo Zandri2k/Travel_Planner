@@ -8,6 +8,7 @@ from frontend.folium import create_folium_map, add_route_to_map, add_marker_to_m
 from frontend.streamlit_elements import show_departure_timetable
 
 
+
 # Initialize ResRobot
 resrobot = ResRobot()
 
