@@ -47,10 +47,6 @@ with col1:
     if start_name:
         st.markdown(f"**Selected Start Point:**<br>{start_name}", unsafe_allow_html=True)
 
-# Show timetable when a start station is selected
-if start_name:
-    show_departure_timetable(resrobot, stops_df, start_name)
-
 # Arrow symbol
 with col2:
     st.markdown("<div style='text-align: center; margin-top: 10px; font-size: 40px;'>→</div>", unsafe_allow_html=True)
@@ -61,15 +57,51 @@ with col3:
     if end_name:
         st.markdown(f"**Selected End Point:**<br>{end_name}", unsafe_allow_html=True)
 
-# **Match departures with selected endpoint**
-if start_name and end_name:
-    show_departure_timetable(resrobot, stops_df, start_name, end_name)
+# **Handle sidebar dynamically**
+st.sidebar.empty()  # Clear sidebar before switching modes
+
+if start_name and not end_name:
+    # **Show departure timetable if only start is selected**
+    show_departure_timetable(resrobot, stops_df, start_name)
+
+elif start_name and end_name:
+    # **Hide departures and show trip details**
+    st.sidebar.subheader(f"Trips from {start_name} → {end_name}")
+
+    try:
+        start_id = stop_dict[start_name]
+        end_id = stop_dict[end_name]
+
+        # Fetch trip details
+        trip_details = resrobot.trips(origin_id=start_id, destination_id=end_id)
+
+        if trip_details and "Trip" in trip_details and len(trip_details["Trip"]) > 0:
+            for trip in trip_details["Trip"]:
+                legs = trip["LegList"]["Leg"]
+                if isinstance(legs, dict):  # Handle single-leg trips
+                    legs = [legs]
+
+                # Extract trip details
+                departure_time = legs[0]["Origin"]["time"]
+                arrival_time = legs[-1]["Destination"]["time"]
+                route_path = " > ".join([leg["Destination"]["name"].split(" (")[0] for leg in legs])
+                transport_number = legs[0]["Product"][0].get("num", "N/A")
+                transport_icon = "🚆" if "Tåg" in legs[0]["Product"][0].get("name", "") else "🚍"
+
+                st.sidebar.markdown(f"{transport_icon} {transport_number} → ⏳ {departure_time} - {arrival_time} → {route_path}")
+
+        else:
+            st.sidebar.warning("No valid trips found.")
+
+    except KeyError:
+        st.sidebar.error("Error: Could not find stop IDs. Please check stop names.")
+    except Exception as e:
+        st.sidebar.error(f"An error occurred while fetching trip details: {e}")
 
 # **Fetch trip details when both points are selected**
 if start_name and end_name:
     st.write(f"**Planning trip:** {start_name} → {end_name}")
 
-    # Lookup stop IDs
     try:
         start_id = stop_dict[start_name]
         end_id = stop_dict[end_name]
@@ -135,17 +167,9 @@ if start_name and end_name:
                         # Store route coordinates
                         all_route_coords.extend(smoothed_route_coords)
 
-            # Add start & end markers
-            add_marker_to_map(m, start_stop["stop_lat"], start_stop["stop_lon"], f"Start: {start_name}", "green")
-            add_marker_to_map(m, end_stop["stop_lat"], end_stop["stop_lon"], f"End: {end_name}", "red")
-
-            # Add markers for intermediate stops
-            for leg in next_departure["LegList"]["Leg"]:
-                if "Stops" in leg and "Stop" in leg["Stops"]:
-                    for stop in leg["Stops"]["Stop"]:
-                        add_small_marker_to_map(m, stop["lat"], stop["lon"], f"{stop['name']}<br>{stop.get('arrTime', stop.get('depTime', 'N/A'))}")
-
-            # Show the map
+            # Add markers and show the map
+            add_marker_to_map(m, start_stop["stop_lat"], start_stop["stop_lon"], "Start", "green")
+            add_marker_to_map(m, end_stop["stop_lat"], end_stop["stop_lon"], "End", "red")
             with col3:
                 with st.expander("🗺️ **Show Map**", expanded=True):
                     display_map_in_streamlit(m)
@@ -153,10 +177,5 @@ if start_name and end_name:
         else:
             st.error("No departures found for the selected route. Please try again later.")
 
-    except KeyError:
-        st.error("Error: Could not find stop IDs. Please check stop names.")
     except Exception as e:
-        st.error(f"An error occurred while fetching trip details: {e}")
-
-elif start_name or end_name:
-    st.info("Please select both start and end points.")
+        st.error(f"An error occurred: {e}")
