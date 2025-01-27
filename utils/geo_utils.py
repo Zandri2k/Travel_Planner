@@ -34,7 +34,7 @@ def calculate_zoom_level(lat1, lon1, lat2, lon2):
     else:
         return 12
 
-def interpolate_points(route_coords, num_points=100):
+def interpolate_points(route_coords, num_points=200):
     """Interpolate points between route coordinates for smoother curves."""
     lats = np.array([coord[0] for coord in route_coords])
     lons = np.array([coord[1] for coord in route_coords])
