@@ -13,6 +13,12 @@ class ResRobot:
     API_KEY4 = os.getenv("API_KEY4")  # GTFS Regional Static data
     API_KEY5 = os.getenv("API_KEY5")  # GTFS3
     API_KEY6 = os.getenv("API_KEY6")  # GoogleMaps
+    API_KEY = os.getenv("API_KEY")  # ResRobot2.1
+    API_KEY2 = os.getenv("API_KEY2")  # Traffikverket öppet API
+    API_KEY3 = os.getenv("API_KEY3")  # GTFS Sverige2
+    API_KEY4 = os.getenv("API_KEY4")  # GTFS Regional Static data
+    API_KEY5 = os.getenv("API_KEY5")  # GTFS3
+    API_KEY6 = os.getenv("API_KEY6")  # GoogleMaps
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """origing_id and destination_id can be found from Stop lookup API"""
@@ -34,7 +40,12 @@ class ResRobot:
         print(f"{'Name':<50} extId")
 
         for stop in result.get("stopLocationOrCoordLocation", []):
+        for stop in result.get("stopLocationOrCoordLocation", []):
             stop_data = next(iter(stop.values()))
+            stop_name = stop_data.get("name", "Unknown")
+            stop_id = stop_data.get("extId", "N/A")
+            lat = stop_data.get("lat", "N/A")
+            lon = stop_data.get("lon", "N/A")
             stop_name = stop_data.get("name", "Unknown")
             stop_id = stop_data.get("extId", "N/A")
             lat = stop_data.get("lat", "N/A")
@@ -42,6 +53,7 @@ class ResRobot:
 
             # returns None if extId doesn't exist
             if stop_data.get("extId"):
+                print(f"{stop_name:<40} {stop_id:<12} {lat:<12} {lon}")
                 print(f"{stop_name:<40} {stop_id:<12} {lat:<12} {lon}")
 
     def timetable_departure(self, location_id=740015565):
@@ -86,9 +98,6 @@ class ResRobot:
         except requests.exceptions.RequestException as err:
             print(f"Error fetching name for extId {ext_id}: {err}")
             return None
-
-    
-    
 
     def nearby_stops(self, latitude, longitude, max_results=10):
         """
