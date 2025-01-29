@@ -40,7 +40,6 @@ class ResRobot:
         print(f"{'Name':<50} extId")
 
         for stop in result.get("stopLocationOrCoordLocation", []):
-        for stop in result.get("stopLocationOrCoordLocation", []):
             stop_data = next(iter(stop.values()))
             stop_name = stop_data.get("name", "Unknown")
             stop_id = stop_data.get("extId", "N/A")
@@ -58,7 +57,7 @@ class ResRobot:
 
     def timetable_departure(self, location_id=740015565):
         url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}"
-        
+
         response = requests.get(url)
         result = response.json()
         return result
@@ -68,11 +67,11 @@ class ResRobot:
         response = requests.get(url)
         result = response.json()
         return result
-    
+
     def name_from_access_id(self, ext_id):
         """
         Fetch the name of a location given its extId.
-        
+
         Parameters:
         ----------
         ext_id : int or str
@@ -84,7 +83,7 @@ class ResRobot:
             The name of the location, or None if not found.
         """
         url = f"https://api.resrobot.se/v2.1/location.name?input={ext_id}&format=json&accessId={self.API_KEY}"
-        
+
         try:
             response = requests.get(url)
             response.raise_for_status()

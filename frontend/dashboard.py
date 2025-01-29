@@ -1,5 +1,4 @@
 from datetime import datetime
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -9,13 +8,7 @@ from plot_maps import TripMap
 
 from backend.connect_to_api import ResRobot
 from frontend.timetable_sidebar import show_departure_timetable
-from backend.connect_to_api import ResRobot
-from frontend.timetable_sidebar import show_departure_timetable
 from utils.constants import StationIds
-from utils.geo_utils import filter_stops_within_radius
-
-# Initialize ResRobot
-resrobot = ResRobot()
 from utils.geo_utils import filter_stops_within_radius
 
 # Initialize ResRobot
@@ -24,29 +17,6 @@ resrobot = ResRobot()
 trip_map = TripMap(
     origin_id=StationIds.MALMO.value, destination_id=StationIds.UMEA.value
 )
-
-CITY_CENTERS = {
-    "Stockholm": (59.3303, 18.0686),
-    "Göteborg": (57.7089, 11.9735),
-    "Malmö": (55.6096, 13.0007),
-}
-
-
-@st.cache_data
-def load_stops(file_path="../data/stops.txt"):
-    """Load stop data from a local file."""
-    columns = ["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"]
-    return pd.read_csv(file_path, names=columns, header=0)
-
-
-@st.dialog("Resedetaljer")
-def browse_trip(icon, number, departure_time, arrival_time, path):
-    st.write(f"{icon} {number} → ⏳ {departure_time} - {arrival_time} → {path}")
-
-
-stops_df = load_stops()
-stop_dict = dict(zip(stops_df["stop_name"], stops_df["stop_id"]))
-
 
 CITY_CENTERS = {
     "Stockholm": (59.3303, 18.0686),
@@ -94,16 +64,10 @@ def main():
     center_lat, center_lon = CITY_CENTERS[selected_city]
 
     stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
-    selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
-    center_lat, center_lon = CITY_CENTERS[selected_city]
-
-    stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
 
     st.markdown(
         """<span style='
         color: #20265A;
-        font-size: 70px;
-        font-weight: bold'>Resekollen</span>
         font-size: 70px;
         font-weight: bold'>Resekollen</span>
         """,
@@ -115,7 +79,7 @@ def main():
     desc.markdown(
         "Här visas stopp och andra detaljer för en resa mellan två valda resmål"
     )
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
     start_name = col1.selectbox(
         "Start Point", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
     )

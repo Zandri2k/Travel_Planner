@@ -78,14 +78,6 @@ class TripPlanner:
             print(f"Error processing stops: {e}")
             return 0
 
-        
     def get_location_name(self, ext_id):
         """Fetches the name of a location using the ResRobot API."""
         return resrobot.name_from_access_id(ext_id)
-
-
-if __name__ == "__main__":
-    data = TripData(
-        740000190,
-    )
-    print(data.next_available_trip()[["arrTime", "depTime", "time", "date"]])
