@@ -95,7 +95,9 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
                 arrival_time = first_leg["Destination"]["time"]
 
                 # Determine transport type icon
-                transport_icon = "🚆" if "Tåg" in transport_info.get("name", "") else "🚍"
+                transport_icon = (
+                    "🚆" if "Tåg" in transport_info.get("name", "") else "🚍"
+                )
 
                 # Display in sidebar
                 st.sidebar.markdown(
