@@ -56,7 +56,7 @@ class ResRobot:
         response = requests.get(url)
         result = response.json()
         return result
-    
+
     def name_from_access_id(self, ext_id):
         """
         Fetch the name of a location given its extId.
