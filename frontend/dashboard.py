@@ -79,16 +79,16 @@ def main():
     desc.markdown(
         "Här visas stopp och andra detaljer för en resa mellan två valda resmål"
     )
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
     start_name = col1.selectbox(
-        "Start Point", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
+        "Startpunkt", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
     )
     col2.markdown(
         "<div style='text-align: center; margin-top: 10px; font-size: 40px;'>→</div>",
         unsafe_allow_html=True,
     )
     end_name = col3.selectbox(
-        "End Point", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
+        "Slutpunkt", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
     )
 
     if start_name and not end_name:
