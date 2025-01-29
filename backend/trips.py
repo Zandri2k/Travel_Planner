@@ -78,6 +78,14 @@ class TripPlanner:
             print(f"Error processing stops: {e}")
             return 0
 
+    def changes_on_trip(self, trip_index=0) -> int:
+        try:
+            trip = self.trips[trip_index]
+            return len(trip.get("LegList").get("Leg", [])) - 1
+        except (KeyError, IndexError) as e:
+            print(f"Error processing changes for trip {trip_index}: {e}")
+            return 0
+
     def get_location_name(self, ext_id):
         """Fetches the name of a location using the ResRobot API."""
         return resrobot.name_from_access_id(ext_id)
