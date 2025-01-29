@@ -146,7 +146,7 @@ class ResRobot:
                 transport_types = [
                     p["cls"] for p in stop_data.get("productAtStop", [])
                 ]  # Extract transport types
-
+                
                 results.append(
                     {
                         "name": stop_name,
