@@ -144,12 +144,15 @@ def main():
 
                     travel_time = t2 - t1
 
-                    wait_time = t1 - cur_time
+                    if t1 < cur_time:
+                        wait_time = t1 - cur_time
 
-                    hours, minutes = (
-                        wait_time.seconds // 3600,
-                        wait_time.seconds // 60 % 60,
-                    )
+                        hours, minutes = (
+                            wait_time.seconds // 3600,
+                            wait_time.seconds // 60 % 60,
+                        )
+                    else:
+                        hours, minutes = 0, 0
 
                     if (hours, minutes) == (0, 0):
                         wait = "Nu"
