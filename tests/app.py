@@ -6,6 +6,7 @@ from utils.geo_utils import haversine, filter_stops_within_radius, calculate_mid
 from backend.connect_to_api import ResRobot
 from frontend.folium import create_folium_map, add_route_to_map, add_marker_to_map, add_small_marker_to_map, display_map_in_streamlit
 from frontend.streamlit_elements import show_departure_timetable
+import time
 
 # Initialize ResRobot
 resrobot = ResRobot()
@@ -23,7 +24,8 @@ def load_stops(file_path="data/stops.txt"):
     """Load stop data from a local file."""
     columns = ["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"]
     return pd.read_csv(file_path, names=columns, header=0)
-
+    
+    
 # Load stops
 stops_df = load_stops()
 stop_dict = dict(zip(stops_df["stop_name"], stops_df["stop_id"]))
