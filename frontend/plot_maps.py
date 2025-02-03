@@ -1,7 +1,17 @@
+<<<<<<< HEAD
 import folium
 import streamlit as st
 from abc import ABC, abstractmethod
 import pandas as pd
+=======
+from abc import ABC, abstractmethod
+
+import folium
+import streamlit as st
+
+from backend.trips import TripPlanner
+
+>>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
 
 class Maps(ABC):
     """
@@ -52,6 +62,7 @@ class TripMap(Maps):
         for _, row in self.trip_data.iterrows():
             folium.Marker(
                 location=[row["lat"], row["lon"]],
+<<<<<<< HEAD
                 popup=f"{row['name']}<br>{row['time']}",
                 tooltip=row["name"]
             ).add_to(trip_map)
@@ -66,3 +77,24 @@ class TripMap(Maps):
         st.markdown("Klicka på en station för mer information.")
         trip_map = self._create_map()
         st.components.v1.html(trip_map._repr_html_(), height=500)
+=======
+                popup=f"{row['name']}<br>{row['time']}<br>{row['date']}",
+            ).add_to(geographical_map)
+
+        return geographical_map
+
+    def display_map(self):
+        st.markdown("## Karta över stationerna i din resa")
+        desc = st.container(border=True)
+        desc.markdown(
+            "Klicka på varje station för mer information. Detta är en exempelresa mellan Malmö och Umeå"
+        )
+        m = self._create_map()
+        map_html = m._repr_html_()
+        styled_html = f"""
+        <div style="border: 5px solid #20265A; border-radius: 3px; ">
+            {map_html}
+        </div>
+        """
+        st.components.v1.html(styled_html, height=500)
+>>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
