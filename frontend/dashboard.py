@@ -58,17 +58,6 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-    <style>
-        section[data-testid="stSidebar"] {
-            width: 455px !important; # Set the width to your desired value
-        }
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
-
     st.sidebar.header("Tidstabell")
 
     selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
@@ -92,14 +81,20 @@ def main():
     )
     col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
     start_name = col1.selectbox(
-        "Start Point", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
+        "Från",
+        [""] + stops_within_radius,
+        index=None,
+        placeholder="Stad/Hållplats/Station",
     )
     col2.markdown(
         "<div style='text-align: center; margin-top: 10px; font-size: 40px;'>→</div>",
         unsafe_allow_html=True,
     )
     end_name = col3.selectbox(
-        "End Point", [""] + stops_within_radius, placeholder="Stad/Hållplats/Station"
+        "Till",
+        [""] + stops_within_radius,
+        index=None,
+        placeholder="Stad/Hållplats/Station",
     )
 
     if start_name and not end_name:
