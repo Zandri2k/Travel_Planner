@@ -57,10 +57,6 @@ def main():
     """,
         unsafe_allow_html=True,
     )
-<<<<<<< HEAD
-    
-    trip_map.display_map()
-=======
 
     st.sidebar.header("Tidstabell")
 
@@ -196,7 +192,6 @@ def main():
             st.sidebar.error("Error: Could not find stop IDs. Please check stop names.")
         except Exception as e:
             st.sidebar.error(f"An error occurred while fetching trip details: {e}")
->>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
 
 
 if __name__ == "__main__":

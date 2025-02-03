@@ -1,9 +1,12 @@
-import streamlit as st
 import re
+
+import streamlit as st
+
 
 def clean_location_name(location):
     """Remove unnecessary suffixes like (Uddevalla kn)."""
     return re.sub(r"\s*\(.*?\)", "", location)
+
 
 def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
     """
@@ -27,7 +30,11 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
     # **CASE 1: Show departures if only the start point is selected**
     if not end_name:
         departures_data = resrobot.timetable_departure(location_id=start_id)
-        departures = departures_data.get("Departure", []) if isinstance(departures_data, dict) else []
+        departures = (
+            departures_data.get("Departure", [])
+            if isinstance(departures_data, dict)
+            else []
+        )
 
         st.sidebar.subheader(f"Departures from {start_name}")
 
@@ -36,9 +43,13 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
             departure_time = dep.get("time", "N/A")
             final_destination = clean_location_name(dep.get("direction", "Unknown"))
 
-            transport_icon = "🚆" if "Tåg" in dep.get("ProductAtStop", {}).get("name", "") else "🚍"
+            transport_icon = (
+                "🚆" if "Tåg" in dep.get("ProductAtStop", {}).get("name", "") else "🚍"
+            )
 
-            st.sidebar.markdown(f"{transport_icon} {transport_number} → ⏳ {departure_time} → 📍 {final_destination}")
+            st.sidebar.markdown(
+                f"{transport_icon} {transport_number} → ⏳ {departure_time} → 📍 {final_destination}"
+            )
 
         return  # Stop execution here if no end stop selected
 
@@ -74,7 +85,9 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
 
                 # Extract transport details from the first leg
                 first_leg = trip["LegList"]["Leg"][0]
-                transport_info = first_leg.get("Product", [{}])[0]  # First transport entry
+                transport_info = first_leg.get("Product", [{}])[
+                    0
+                ]  # First transport entry
                 transport_number = transport_info.get("num", "N/A")
 
                 # Extract departure and arrival details
@@ -82,7 +95,9 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
                 arrival_time = first_leg["Destination"]["time"]
 
                 # Determine transport type icon
-                transport_icon = "🚆" if "Tåg" in transport_info.get("name", "") else "🚍"
+                transport_icon = (
+                    "🚆" if "Tåg" in transport_info.get("name", "") else "🚍"
+                )
 
                 # Display in sidebar
                 st.sidebar.markdown(

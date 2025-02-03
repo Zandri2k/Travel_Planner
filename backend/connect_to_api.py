@@ -1,23 +1,22 @@
 import os
 
 import requests
-import googlemaps
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class ResRobot:
-    API_KEY = os.getenv("API_KEY")  # ResRobot2.1 
-    API_KEY2 = os.getenv("API_KEY2") # Traffikverket öppet API
-    API_KEY3 = os.getenv("API_KEY3") # GTFS Sverige2
-    API_KEY4 = os.getenv("API_KEY4") # GTFS Regional Static data
-    API_KEY5 = os.getenv("API_KEY5") # GTFS3 
-    API_KEY6 = os.getenv("API_KEY6") # GoogleMaps
+    API_KEY = os.getenv("API_KEY")  # ResRobot2.1
+    API_KEY2 = os.getenv("API_KEY2")  # Traffikverket öppet API
+    API_KEY3 = os.getenv("API_KEY3")  # GTFS Sverige2
+    API_KEY4 = os.getenv("API_KEY4")  # GTFS Regional Static data
+    API_KEY5 = os.getenv("API_KEY5")  # GTFS3
+    API_KEY6 = os.getenv("API_KEY6")  # GoogleMaps
 
     def trips(self, origin_id=740000001, destination_id=740098001):
         """Retrieve trip details including all intermediate stops."""
-        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"
+        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"  # noqa: E501
 
         try:
             response = requests.get(url)
@@ -60,7 +59,7 @@ class ResRobot:
     def nearby_stops(self, latitude, longitude, max_results=10):
         """
         Fetches nearby public transport stops based on coordinates.
-        
+
         :param latitude: float - Latitude in decimal degrees (WGS84)
         :param longitude: float - Longitude in decimal degrees (WGS84)
         :param max_results: int - Maximum number of stops to return (default: 10)
@@ -72,7 +71,7 @@ class ResRobot:
             "originCoordLong": longitude,
             "maxNo": max_results,  # Number of stops to fetch
             "format": "json",
-            "accessId": self.API_KEY
+            "accessId": self.API_KEY,
         }
 
         try:
@@ -86,7 +85,9 @@ class ResRobot:
                 print("No nearby stops found.")
                 return []
 
-            print(f"{'Stop Name':<40} {'Stop ID':<10} {'Latitude':<12} {'Longitude':<12} {'Distance':<10} {'Transport Types'}")
+            print(
+                f"{'Stop Name':<40} {'Stop ID':<10} {'Latitude':<12} {'Longitude':<12} {'Distance':<10} {'Transport Types'}"  # noqa: E501
+            )
             print("-" * 110)
 
             results = []
@@ -97,56 +98,65 @@ class ResRobot:
                 stop_id = stop_data.get("extId", "N/A")
                 lat = stop_data.get("lat", "N/A")
                 lon = stop_data.get("lon", "N/A")
-                distance = stop_data.get("dist", "N/A")  # Distance from queried location
-                transport_types = [p["cls"] for p in stop_data.get("productAtStop", [])]  # Extract transport types
+                distance = stop_data.get(
+                    "dist", "N/A"
+                )  # Distance from queried location
+                transport_types = [
+                    p["cls"] for p in stop_data.get("productAtStop", [])
+                ]  # Extract transport types
 
-                results.append({
-                    "name": stop_name,
-                    "id": stop_id,
-                    "lat": lat,
-                    "lon": lon,
-                    "distance_m": distance,
-                    "transport_types": transport_types
-                })
+                results.append(
+                    {
+                        "name": stop_name,
+                        "id": stop_id,
+                        "lat": lat,
+                        "lon": lon,
+                        "distance_m": distance,
+                        "transport_types": transport_types,
+                    }
+                )
 
-                print(f"{stop_name:<40} {stop_id:<10} {lat:<12} {lon:<12} {distance:<10} {transport_types}")
+                print(
+                    f"{stop_name:<40} {stop_id:<10} {lat:<12} {lon:<12} {distance:<10} {transport_types}"
+                )
 
             return results
 
         except requests.exceptions.RequestException as err:
             print(f"Error fetching nearby stops: {err}")
             return []
+
     def name_from_access_id(self, ext_id):
-            """
-            Fetch the name of a location given its extId.
+        """
+        Fetch the name of a location given its extId.
 
-            Parameters:
-            ----------
-            ext_id : int or str
-                The unique identifier (extId) of the location.
+        Parameters:
+        ----------
+        ext_id : int or str
+            The unique identifier (extId) of the location.
 
-            Returns:
-            -------
-            str
-                The name of the location, or None if not found.
-            """
-            url = f"https://api.resrobot.se/v2.1/location.name?input={ext_id}&format=json&accessId={self.API_KEY}"
+        Returns:
+        -------
+        str
+            The name of the location, or None if not found.
+        """
+        url = f"https://api.resrobot.se/v2.1/location.name?input={ext_id}&format=json&accessId={self.API_KEY}"
 
-            try:
-                response = requests.get(url)
-                response.raise_for_status()
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
 
-                data = response.json()
-                for stop in data.get("stopLocationOrCoordLocation", []):
-                    stop_data = next(iter(stop.values()))
-                    if str(stop_data.get("extId")) == str(ext_id):
-                        return stop_data.get("name")
-                return None  # Return None if no matching extId is found
-            except requests.exceptions.RequestException as err:
-                print(f"Error fetching name for extId {ext_id}: {err}")
-                return None
+            data = response.json()
+            for stop in data.get("stopLocationOrCoordLocation", []):
+                stop_data = next(iter(stop.values()))
+                if str(stop_data.get("extId")) == str(ext_id):
+                    return stop_data.get("name")
+            return None  # Return None if no matching extId is found
+        except requests.exceptions.RequestException as err:
+            print(f"Error fetching name for extId {ext_id}: {err}")
+            return None
 
-    def nearby_stops(self, latitude, longitude, max_results=10):
+    def nearby_stops2(self, latitude, longitude, max_results=10):
         """
         Fetches nearby public transport stops based on coordinates.
 
