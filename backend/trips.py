@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import osmnx as ox
 import folium
 import requests
@@ -8,14 +7,6 @@ from geopy.distance import geodesic
 from shapely.geometry import LineString, Point
 from backend.connect_to_api import ResRobot
 from polyline import decode
-=======
-import pandas as pd
-
-from backend.connect_to_api import ResRobot
-
-resrobot = ResRobot()
-
->>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
 
 class TripPlanner:
     def __init__(self, origin_id: str, destination_id: str):
@@ -56,19 +47,12 @@ class TripPlanner:
     def plot_train_routes(self, train_stations):
         """Plots train routes using railway data from OSM."""
 
-<<<<<<< HEAD
         for i in range(len(train_stations) - 1):
             start_id, start_lat, start_lon, start_name = train_stations[i]
             end_id, end_lat, end_lon, end_name = train_stations[i + 1]
 
             # 🔍 **Print for Debugging**
             print(f"🛤️ Processing Segment {i}: {start_name} ({start_lat}, {start_lon}) → {end_name} ({end_lat}, {end_lon})")
-=======
-    def __init__(self, origin_id, destination_id) -> None:
-        self.trips = resrobot.trips(origin_id, destination_id).get("Trip")
-        self.number_trips = len(self.trips)
-        self.timetable_departure = resrobot.timetable_departure().get("Departure")
->>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
 
             # ✅ Check if any station is missing lat/lon values
             if None in [start_lat, start_lon, end_lat, end_lon]:
@@ -106,7 +90,6 @@ class TripPlanner:
                         dist = Point(lon1, lat1).distance(Point(lon2, lat2))
                         G.add_edge((lon1, lat1), (lon2, lat2), weight=dist)
 
-<<<<<<< HEAD
             if G.number_of_nodes() == 0:
                 print(f"🚨 No railway data found for segment {i}.")
                 continue
@@ -497,29 +480,3 @@ if __name__ == "__main__":
 # Stenungsund Station 740000014
 # Uddevalla Kampenhof 740000480
 # 🎯 **Fetch Real-Time Stops from ResRobot**
-=======
-    def def_stops_on_trip(self, trip_data):
-        """
-        Calculate the stops on the trip.
-        """
-        try:
-            stops = 0
-            for leg in trip_data.get("LegList", {}).get("Leg", []):
-                stops += len(leg.get("Stops", {}).get("Stop", []))
-            return stops
-        except KeyError as e:
-            print(f"Error processing stops: {e}")
-            return 0
-
-    def changes_on_trip(self, trip_index=0) -> int:
-        try:
-            trip = self.trips[trip_index]
-            return len(trip.get("LegList").get("Leg", [])) - 1
-        except (KeyError, IndexError) as e:
-            print(f"Error processing changes for trip {trip_index}: {e}")
-            return 0
-
-    def get_location_name(self, ext_id):
-        """Fetches the name of a location using the ResRobot API."""
-        return resrobot.name_from_access_id(ext_id)
->>>>>>> 94d634fd3100b7974096c49a3ab5e8ab53d068a3
