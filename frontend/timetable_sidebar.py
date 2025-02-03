@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 import streamlit as st
 
@@ -36,20 +37,65 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
             else []
         )
 
-        st.sidebar.subheader(f"Departures from {start_name}")
-
+        st.sidebar.subheader(f"Resor från {start_name}")
+        sidecol1, sidecol2, sidecol3, sidecol4 = st.sidebar.columns(
+            4, vertical_alignment="top"
+        )
+        sidecol1.markdown("Linje")
+        sidecol2.markdown("Avgår om")
+        sidecol3.markdown("Restid")
+        sidecol4.markdown("<div style='height: 35px'></div>", unsafe_allow_html=True)
+        table_cont = st.sidebar.container(height=520, border=False)
         for dep in departures:
             transport_number = dep.get("ProductAtStop", {}).get("num", "N/A")
             departure_time = dep.get("time", "N/A")
             final_destination = clean_location_name(dep.get("direction", "Unknown"))
 
+            t1 = datetime.strptime(departure_time, "%H:%M:%S")
+            cur_time = datetime.now()
+
+            if t1 < cur_time:
+                wait_time = t1 - cur_time
+
+                hours, minutes = (
+                    wait_time.seconds // 3600,
+                    wait_time.seconds // 60 % 60,
+                )
+            else:
+                hours, minutes = 0, 0
+
+            if (hours, minutes) == (0, 0) or (hours, minutes) == (23, 59):
+                wait = "Nu"
+            elif hours == 0:
+                wait = f"{minutes}m"
+            else:
+                wait = f"{hours}h{minutes}m"
+
             transport_icon = (
                 "🚆" if "Tåg" in dep.get("ProductAtStop", {}).get("name", "") else "🚍"
             )
-
-            st.sidebar.markdown(
-                f"{transport_icon} {transport_number} → ⏳ {departure_time} → 📍 {final_destination}"
+            st.markdown(
+                """
+            <style>
+            .st-emotion-cache-qcpnpn {
+            margin-right: 10px;
+            </style>
+            """,
+                unsafe_allow_html=True,
             )
+            cont = table_cont.container(border=True)
+            tempcol1, tempcol2, tempcol3 = cont.columns(3, vertical_alignment="center")
+            tempcol1.markdown(
+                f"{transport_icon} {transport_number}", unsafe_allow_html=True
+            )
+            tempcol2.markdown(
+                f'<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">{wait}</div>',
+                unsafe_allow_html=True,
+            )
+            with tempcol3.popover("Info"):
+                st.write(
+                    f"{transport_icon} {transport_number} → ⏳ {departure_time} {final_destination}"
+                )
 
         return  # Stop execution here if no end stop selected
 
