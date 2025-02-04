@@ -45,7 +45,7 @@ class ResRobot:
 
     def timetable_departure(self, location_id=740015565):
         """Get the departure board for a given location."""
-        url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}"
+        url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}&passlist=1"  # noqa: E501
 
         response = requests.get(url)
         return response.json()

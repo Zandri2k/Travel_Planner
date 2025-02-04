@@ -1,22 +1,20 @@
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 from backend.connect_to_api import ResRobot
 from frontend.timetable_sidebar import show_departure_timetable
-from utils.geo_utils import filter_stops_within_radius
 
 # Initialize ResRobot
 resrobot = ResRobot()
 
-CITY_CENTERS = {
-    "Stockholm": (59.3303, 18.0686),
-    "Göteborg": (57.7089, 11.9735),
-    "Malmö": (55.6096, 13.0007),
-}
+# CITY_CENTERS = {
+#    "Stockholm": (59.3303, 18.0686),
+#    "Göteborg": (57.7089, 11.9735),
+#    "Malmö": (55.6096, 13.0007),
+# }
 
 IMAGE_PATH = "../frontend/images"
 light_logo = f"{IMAGE_PATH}/Resekollen_logo_700.png"
@@ -32,11 +30,10 @@ def load_stops(file_path="../data/stops.txt"):
 
 stops_df = load_stops()
 stop_dict = dict(zip(stops_df["stop_name"], stops_df["stop_id"]))
+stop_list = stops_df["stop_name"].to_list()
 
 
 img_path = Path(__file__).parent / "images"
-
-test_df = pd.DataFrame(np.random.randn(10, 2), columns=(["Linje", "Avgår om (min)"]))
 
 
 def main():
@@ -45,7 +42,7 @@ def main():
         """
     <style>
         [alt=Logo] {
-        height: 150px;
+        height: 175px;
         }
     </style>
     """
@@ -55,6 +52,16 @@ def main():
         light_logo,
         size="large",
         icon_image=dark_logo,
+    )
+
+    st.markdown(
+        """
+    <style>
+    .st-emotion-cache-yw8pof {
+    max-width: 75rem;
+    </style>
+    """,
+        unsafe_allow_html=True,
     )
 
     st.markdown(
@@ -70,10 +77,10 @@ def main():
 
     st.sidebar.header("Tidstabell")
 
-    selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
-    center_lat, center_lon = CITY_CENTERS[selected_city]
+    # selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
+    # center_lat, center_lon = CITY_CENTERS[selected_city]
 
-    stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
+    # stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
 
     st.markdown(
         """<span style='
@@ -84,7 +91,13 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.markdown("# Reseplanerare")
+    st.markdown(
+        """<span style='
+        font-size: 40px;
+        font-weight: bold'>Reseplanerare</span>
+        """,
+        unsafe_allow_html=True,
+    )
     desc = st.container(border=True)
     desc.markdown(
         "Här visas stopp och andra detaljer för en resa mellan två valda resmål"
@@ -92,7 +105,7 @@ def main():
     col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
     start_name = col1.selectbox(
         "Från",
-        [""] + stops_within_radius,
+        [""] + stop_list,
         index=None,
         placeholder="Stad/Hållplats/Station",
     )
@@ -102,7 +115,7 @@ def main():
     )
     end_name = col3.selectbox(
         "Till",
-        [""] + stops_within_radius,
+        [""] + stop_list,
         index=None,
         placeholder="Stad/Hållplats/Station",
     )
@@ -180,14 +193,26 @@ def main():
                         travel_time.seconds // 3600,
                         travel_time.seconds // 60 % 60,
                     )
-
+                    transport_name = legs[0]["Product"][0].get("name", "")
                     transport_number = legs[0]["Product"][0].get(
                         "num", legs[0]["Product"][0].get("name", "N/A")
                     )
-                    transport_icon = (
-                        "🚆" if "Tåg" in legs[0]["Product"][0].get("name", "") else "🚍"
-                    )
-                    route_detailed = " > ".join(
+                    transport_icon = "N/A"
+                    icons = ["🚆", "🚍", "🚊", "🚇", "🚶", "🚄", "🚄"]
+                    transport_types = [
+                        "Tåg",
+                        "Buss",
+                        "Spårväg",
+                        "Tunnelbana",
+                        "Promenad",
+                        "Snabbtåg",
+                        "Express",
+                    ]
+                    for i, t in zip(icons, transport_types):
+                        if t in transport_name:
+                            transport_icon = i
+
+                    route_detailed = " ➔ ".join(
                         [
                             leg["Destination"]["name"].split(" (")[0]
                             + ": "
@@ -197,7 +222,7 @@ def main():
                     )
 
                     complete_detailed = (
-                        f"{start_name}: {departure_time} > {route_detailed}"
+                        f"{start_name}: {departure_time} ➔ {route_detailed}"
                     )
 
                     cont = st.sidebar.container(border=True)
@@ -215,7 +240,7 @@ def main():
                     tempcol3.markdown(f"⏳ {hours}h{minutes}m", unsafe_allow_html=True)
                     with tempcol4.popover("Info", use_container_width=True):
                         st.header("Resedetaljer")
-                        st.write(f"{transport_icon} {transport_number} mot {end_name}")
+                        st.write(f"{transport_icon} {transport_name} mot {end_name}")
                         st.markdown(complete_detailed)
                         st.button("Välj resa", key=f"{button_key}")
                     button_key += 1
