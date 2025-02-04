@@ -24,17 +24,16 @@ CITY_CENTERS = {
     "Malmö": (55.6096, 13.0007),
 }
 
+IMAGE_PATH = "../frontend/images"
+light_logo = f"{IMAGE_PATH}/Resekollen_logo_700.png"
+dark_logo = f"{IMAGE_PATH}/Resekollen_logo_700_dark.png"
+
 
 @st.cache_data
 def load_stops(file_path="../data/stops.txt"):
     """Load stop data from a local file."""
     columns = ["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"]
     return pd.read_csv(file_path, names=columns, header=0)
-
-
-@st.dialog("Resedetaljer")
-def browse_trip(icon, number, departure_time, arrival_time, path):
-    st.write(f"{icon} {number} → ⏳ {departure_time} - {arrival_time} → {path}")
 
 
 stops_df = load_stops()
@@ -47,6 +46,23 @@ test_df = pd.DataFrame(np.random.randn(10, 2), columns=(["Linje", "Avgår om (mi
 
 
 def main():
+
+    st.html(
+        """
+    <style>
+        [alt=Logo] {
+        height: 150px;
+        }
+    </style>
+    """
+    )
+
+    st.logo(
+        light_logo,
+        size="large",
+        icon_image=dark_logo,
+    )
+
     st.markdown(
         """
     <style>
@@ -119,13 +135,23 @@ def main():
                 sidecol1, sidecol2, sidecol3, sidecol4 = st.sidebar.columns(
                     4, vertical_alignment="top"
                 )
-                sidecol1.markdown("Linje")
-                sidecol2.markdown("Avgår om")
-                sidecol3.markdown("Restid")
+                sidecol1.markdown(
+                    '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Linje</div>',
+                    unsafe_allow_html=True,
+                )
+                sidecol2.markdown(
+                    '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Avgår om</div>',
+                    unsafe_allow_html=True,
+                )
+                sidecol3.markdown(
+                    '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Restid</div>',
+                    unsafe_allow_html=True,
+                )
                 sidecol4.markdown(
                     "<div style='height: 35px'></div>", unsafe_allow_html=True
                 )
                 cur_time = datetime.now()
+                button_key = 0
                 for trip in trip_details["Trip"]:
                     legs = trip["LegList"]["Leg"]
                     if isinstance(legs, dict):  # Handle single-leg trips
@@ -161,19 +187,32 @@ def main():
                         travel_time.seconds // 60 % 60,
                     )
 
-                    route_path = " > ".join(
-                        [leg["Destination"]["name"].split(" (")[0] for leg in legs]
+                    transport_number = legs[0]["Product"][0].get(
+                        "num", legs[0]["Product"][0].get("name", "N/A")
                     )
-                    transport_number = legs[0]["Product"][0].get("num", "N/A")
                     transport_icon = (
                         "🚆" if "Tåg" in legs[0]["Product"][0].get("name", "") else "🚍"
                     )
+                    route_detailed = " > ".join(
+                        [
+                            leg["Destination"]["name"].split(" (")[0]
+                            + ": "
+                            + leg["Destination"]["time"]
+                            for leg in legs
+                        ]
+                    )
+
+                    complete_detailed = (
+                        f"{start_name}: {departure_time} > {route_detailed}"
+                    )
+
                     cont = st.sidebar.container(border=True)
                     tempcol1, tempcol2, tempcol3, tempcol4 = cont.columns(
-                        4, vertical_alignment="center"
+                        [0.3, 0.2, 0.25, 0.25], vertical_alignment="center"
                     )
                     tempcol1.markdown(
-                        f"{transport_icon} {transport_number}", unsafe_allow_html=True
+                        f'<div style="margin-bottom: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ">{transport_icon} {transport_number}</div>',  # noqa: E501
+                        unsafe_allow_html=True,
                     )
                     tempcol2.markdown(
                         f'<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">{wait}</div>',
@@ -181,9 +220,11 @@ def main():
                     )
                     tempcol3.markdown(f"⏳ {hours}h{minutes}m", unsafe_allow_html=True)
                     with tempcol4.popover("Info", use_container_width=True):
-                        st.write(
-                            f"{transport_icon} {transport_number} → ⏳ {departure_time} - {arrival_time} → {route_path}"
-                        )
+                        st.header("Resedetaljer")
+                        st.write(f"{transport_icon} {transport_number} mot {end_name}")
+                        st.markdown(complete_detailed)
+                        st.button("Välj resa", key=f"{button_key}")
+                    button_key += 1
 
             else:
                 st.sidebar.warning("No valid trips found.")
