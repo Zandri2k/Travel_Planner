@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime, timedelta
 
 import streamlit as st
@@ -10,11 +11,11 @@ CONTAINER_STYLE = (
     "background-color: #f9f9f9; "
     "margin: 10px 0px;"
 )
-# Adjust the ratio for the three columns in the station query section.
+# Ratio for the three columns in the station query section.
 STATION_QUERY_COLS = [5, 2, 5]
-# Number of spacer rows (blank st.write("") calls) under station query.
+# Number of spacer rows (blank st.write("") calls) under the station query.
 STATION_QUERY_SPACER_ROWS = 5
-# ------------------ End Adjustable Variables ------------------
+# ------------------ End Adjustable Layout Variables ------------------
 
 
 def get_full_search_parameters(
@@ -24,89 +25,130 @@ def get_full_search_parameters(
     station_query_spacer=STATION_QUERY_SPACER_ROWS,
 ):
     """
-    Render a search container with station and time settings wrapped in a styled box.
+    Render a search container that allows selection of:
+      - Start and End Stations,
+      - Travel Date (restricted to today until the end of the current month),
+      - Optionally, a departure time constraint and/or an arrival time constraint.
 
-    Parameters:
-      stops_list (list): List of stops for the selectboxes.
-      container_style (str): CSS style for the outer container.
-      station_query_cols (list): List defining the relative widths of the three columns.
-      station_query_spacer (int): Number of blank lines to add under the station query.
+    For each time constraint, a checkbox determines whether the slider is used.
+    If checked, the user picks a time using the slider; if not, the corresponding value is None.
+
+    The slider ranges depend on the selected travel date:
+      - If travel_date is today, the available time range is from the current time (rounded
+        to the nearest 5 minutes) up to 23:59.
+      - Otherwise (for future dates), the range is from 00:00 to 23:59.
 
     Returns:
-      dict: Dictionary with:
-            - "start_station": Selected start station.
-            - "end_station": Selected end station.
-            - "date": Selected travel date (YYYY-MM-DD).
-            - "time_option": One of "Nu", "Avgångstid", "Ankomstid".
-            - "selected_time": The chosen time (datetime object) if applicable.
+      dict: A dictionary with the following keys:
+            - "start_station": Selected start station (string).
+            - "end_station": Selected end station (string).
+            - "date": Selected travel date in "YYYY-MM-DD" format.
+            - "departure_time": A datetime object for the departure time constraint, or None.
+            - "arrival_time": A datetime object for the arrival time constraint, or None.
     """
     params = {}
 
     with st.container():
-        # Outer styled container with faded outline.
-        st.markdown(f"<div style='{container_style}'>", unsafe_allow_html=True)
+        # Outer container with custom style.
+        st.markdown(f'<div style="{container_style}">', unsafe_allow_html=True)
 
-        # --- Upper Section (approx. 8 rows): Station Query ---
+        # --- Upper Section: Station Query ---
         st.markdown("## Station Query")
         col1, col2, col3 = st.columns(station_query_cols)
         with col1:
             start_station = st.selectbox(
-                "🚏 Start Point", [""] + stops_list, key="start_station"
+                "🚏 Start Station", [""] + stops_list, key="start_station"
             )
         with col2:
             st.markdown(
-                "<div style='text-align: center; font-size: 40px;'>→</div>",
+                '<div style="text-align: center; font-size: 40px;">→</div>',
                 unsafe_allow_html=True,
             )
         with col3:
             end_station = st.selectbox(
-                "🚏 End Point", [""] + stops_list, key="end_station"
+                "🚏 End Station", [""] + stops_list, key="end_station"
             )
-        # Add blank spacer rows for extra vertical space.
+
+        # Add spacer rows for vertical space.
         for _ in range(station_query_spacer):
             st.write("")
         params["start_station"] = start_station
         params["end_station"] = end_station
 
-        # --- Lower Section (approx. 4 rows): Date and Time Settings ---
+        # --- Lower Section: Date and Time Settings ---
         st.markdown("## Tidinställningar")
 
-        # Row 1: Date selector (for the timetable schedule).
+        # Date Input: Only allow dates from today until the end of the current month.
+        today_date = datetime.today().date()
+        current_year = today_date.year
+        current_month = today_date.month
+        last_day = calendar.monthrange(current_year, current_month)[1]
+        last_date_of_month = datetime(current_year, current_month, last_day).date()
+
         travel_date = st.date_input(
-            "Välj resedatum", value=datetime.today(), key="travel_date"
+            "Välj resedatum",
+            value=today_date,
+            min_value=today_date,
+            max_value=last_date_of_month,
+            key="travel_date",
         )
         params["date"] = travel_date.strftime("%Y-%m-%d")
 
-        # Row 2: Horizontal radio for time mode.
-        time_option = st.radio(
-            "",
-            options=["Nu", "Avgångstid", "Ankomstid"],
-            index=0,
-            horizontal=True,
-            key="time_option",
-        )
-        params["time_option"] = time_option
-
-        # Rows 3-4: Conditional expander with a time slider.
-        selected_time = None
-        if time_option in ("Avgångstid", "Ankomstid"):
-            expander_label = (
-                "Välj avgångstid" if time_option == "Avgångstid" else "Välj ankomsttid"
+        # Determine time slider range based on travel_date.
+        if travel_date == today_date:
+            now = datetime.now()
+            # Round current time to the nearest 5 minutes.
+            rounded_minute = (now.minute // 5) * 5
+            now_rounded = now.replace(minute=rounded_minute, second=0, microsecond=0)
+            min_time = datetime.combine(travel_date, now_rounded.time())
+            default_departure = min_time
+        else:
+            min_time = datetime.combine(
+                travel_date, datetime.strptime("00:00", "%H:%M").time()
             )
-            with st.expander(expander_label, expanded=False):
-                now = datetime.now()
-                min_time = now - timedelta(hours=6)
-                max_time = now + timedelta(hours=6)
-                selected_time = st.slider(
-                    "Välj tid",
+            default_departure = min_time
+        max_time = datetime.combine(
+            travel_date, datetime.strptime("23:59", "%H:%M").time()
+        )
+        default_arrival = max_time
+
+        # --- Time Constraint Section ---
+        # Two columns: one for departure and one for arrival.
+        col_time1, col_time2 = st.columns(2)
+        # Departure Time Constraint.
+        with col_time1:
+            use_departure = st.checkbox("Ange avgångstid", key="use_departure")
+            if use_departure:
+                departure_time = st.slider(
+                    "Avgångstid",
                     min_value=min_time,
                     max_value=max_time,
-                    value=now,
+                    value=default_departure,
                     step=timedelta(minutes=5),
                     format="HH:mm",
-                    key="selected_time",
+                    key="departure_time",
                 )
-        params["selected_time"] = selected_time
+            else:
+                departure_time = None
+
+        # Arrival Time Constraint.
+        with col_time2:
+            use_arrival = st.checkbox("Ange ankomsttid", key="use_arrival")
+            if use_arrival:
+                arrival_time = st.slider(
+                    "Ankomsttid",
+                    min_value=min_time,
+                    max_value=max_time,
+                    value=default_arrival,
+                    step=timedelta(minutes=5),
+                    format="HH:mm",
+                    key="arrival_time",
+                )
+            else:
+                arrival_time = None
+
+        params["departure_time"] = departure_time
+        params["arrival_time"] = arrival_time
 
         # Close the outer container.
         st.markdown("</div>", unsafe_allow_html=True)
@@ -114,9 +156,8 @@ def get_full_search_parameters(
     return params
 
 
-# --- Example usage for testing in isolation ---
 if __name__ == "__main__":
-    # Example stops list; in your actual app, load this from your stops.txt file.
+    # For standalone testing only.
     stops_list = ["Stockholm C", "Göteborg C", "Malmö C", "Uppsala C"]
     search_params = get_full_search_parameters(stops_list)
     st.write("Search parameters:", search_params)
