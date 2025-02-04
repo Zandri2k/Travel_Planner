@@ -4,19 +4,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
-from plot_maps import TripMap
 
 from backend.connect_to_api import ResRobot
 from frontend.timetable_sidebar import show_departure_timetable
-from utils.constants import StationIds
 from utils.geo_utils import filter_stops_within_radius
 
 # Initialize ResRobot
 resrobot = ResRobot()
-
-trip_map = TripMap(
-    origin_id=StationIds.MALMO.value, destination_id=StationIds.UMEA.value
-)
 
 CITY_CENTERS = {
     "Stockholm": (59.3303, 18.0686),
