@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
@@ -14,9 +15,36 @@ class ResRobot:
     API_KEY5 = os.getenv("API_KEY5")  # GTFS3
     API_KEY6 = os.getenv("API_KEY6")  # GoogleMaps
 
-    def trips(self, origin_id=740000001, destination_id=740098001):
-        """Retrieve trip details including all intermediate stops."""
-        url = f"https://api.resrobot.se/v2.1/trip?format=json&originId={origin_id}&destId={destination_id}&passlist=true&showPassingPoints=true&accessId={self.API_KEY}"  # noqa: E501
+    def trips(
+        self,
+        origin_id=740000001,
+        destination_id=740098001,
+        date=None,
+        time=None,
+        searchForArrival=0,
+    ):
+        """Retrieve trip details including all intermediate stops.
+
+        Parameters:
+          origin_id:   Stop id for origin.
+          destination_id:  Stop id for destination.
+          date:        Date in YYYY-MM-DD format (defaults to today).
+          time:        Time in HH:MM format (defaults to now).
+          searchForArrival: 0 to search for departures, 1 for arrivals.
+        """
+        if date is None:
+            date = datetime.today().strftime("%Y-%m-%d")
+        if time is None:
+            time = datetime.now().strftime("%H:%M")
+
+        url = (
+            f"https://api.resrobot.se/v2.1/trip?format=json"
+            f"&originId={origin_id}&destId={destination_id}"
+            f"&passlist=true&showPassingPoints=true"
+            f"&date={date}&time={time}"
+            f"&searchForArrival={searchForArrival}"
+            f"&accessId={self.API_KEY}"
+        )
 
         try:
             response = requests.get(url)
@@ -24,6 +52,7 @@ class ResRobot:
             return response.json()
         except requests.exceptions.RequestException as err:
             print(f"Network or HTTP error: {err}")
+            return None
 
     def access_id_from_location(self, location):
         """Look up stop IDs based on a location name."""
@@ -45,7 +74,7 @@ class ResRobot:
 
     def timetable_departure(self, location_id=740015565):
         """Get the departure board for a given location."""
-        url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}"
+        url = f"https://api.resrobot.se/v2.1/departureBoard?id={location_id}&format=json&accessId={self.API_KEY}&passlist=1"  # noqa: E501
 
         response = requests.get(url)
         return response.json()

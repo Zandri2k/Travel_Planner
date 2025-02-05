@@ -1,22 +1,18 @@
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 from backend.connect_to_api import ResRobot
+from backend.trips import TripPlanner  # Assumes TripPlanner uses ResRobot.trips()
+
+# Import the new search container.
+from frontend.search_container import get_full_search_parameters
 from frontend.timetable_sidebar import show_departure_timetable
-from utils.geo_utils import filter_stops_within_radius
 
 # Initialize ResRobot
 resrobot = ResRobot()
-
-CITY_CENTERS = {
-    "Stockholm": (59.3303, 18.0686),
-    "Göteborg": (57.7089, 11.9735),
-    "Malmö": (55.6096, 13.0007),
-}
 
 IMAGE_PATH = "../frontend/images"
 light_logo = f"{IMAGE_PATH}/Resekollen_logo_700.png"
@@ -30,13 +26,62 @@ def load_stops(file_path="../data/stops.txt"):
     return pd.read_csv(file_path, names=columns, header=0)
 
 
+# ✅ Hook 1: Fetch Trip Data and Create a `TripPlanner` Instance
+def get_trip_planner(start_name, end_name):
+    """Fetches trip details and returns a TripPlanner instance."""
+    if not start_name or not end_name:
+        return None
+
+    try:
+        start_id = stop_dict[start_name]
+        end_id = stop_dict[end_name]
+        trip_planner = TripPlanner(start_id, end_id)
+        trip_planner.extract_route_with_transfers()
+        return trip_planner
+    except KeyError:
+        st.sidebar.error("🚨 Stop IDs not found. Please select valid stops.")
+        return None
+
+
+def generate_and_display_map(tp):
+    if not tp:
+        st.warning("❌ No trip data available.")
+        return
+    tp.initialize_map()
+    for i, (transport_type, stations) in enumerate(tp.route_legs):
+        if transport_type in [
+            "1",
+            "3",
+            "4",
+        ]:  # Fix: Check string, not list in # in ["1", "3", "4"]
+            tp.plot_train_routes(tp.map_route, stations)
+        elif transport_type in ["2", "7"]:  # Includes both long-distance bus and metro
+            tp.plot_road_routes(tp.map_route, stations)
+        elif transport_type == "6":
+            tp.plot_tram_routes(tp.map_route, stations)
+        elif transport_type == "5":
+            tp.plot_subway_routes(tp.map_route, stations)  # ✅ Subway plotting function
+        elif transport_type == "unknown" and i > 0:
+            # 🚨 FIX: Correctly use the last station from the previous leg as the start
+            start = tp.route_legs[i - 1][1][-1][1:3]  # Last stop of previous leg
+            end = stations[-1][1:3]  # Last stop of current leg
+            print(f"🚶 Walking route correctly assigned: Start {start} → End {end}")
+            tp.plot_walking_route(tp.map_route, start, end)
+    map_html = tp.map_route._repr_html_()
+    styled_html = f"""
+    <div style="border: 5px solid #20265A; border-radius: 3px; ">
+        {map_html}
+    </div>
+    """
+    st.components.v1.html(styled_html, height=700)
+
+
 stops_df = load_stops()
 stop_dict = dict(zip(stops_df["stop_name"], stops_df["stop_id"]))
+stops_list = stops_df["stop_name"].to_list()
 
 
 img_path = Path(__file__).parent / "images"
-
-test_df = pd.DataFrame(np.random.randn(10, 2), columns=(["Linje", "Avgår om (min)"]))
 
 
 def main():
@@ -45,7 +90,7 @@ def main():
         """
     <style>
         [alt=Logo] {
-        height: 150px;
+        height: 175px;
         }
     </style>
     """
@@ -55,6 +100,16 @@ def main():
         light_logo,
         size="large",
         icon_image=dark_logo,
+    )
+
+    st.markdown(
+        """
+    <style>
+    .st-emotion-cache-yw8pof {
+    max-width: 75rem;
+    </style>
+    """,
+        unsafe_allow_html=True,
     )
 
     st.markdown(
@@ -70,11 +125,6 @@ def main():
 
     st.sidebar.header("Tidstabell")
 
-    selected_city = st.sidebar.selectbox("Välj stad", list(CITY_CENTERS.keys()))
-    center_lat, center_lon = CITY_CENTERS[selected_city]
-
-    stops_within_radius = filter_stops_within_radius(stops_df, center_lat, center_lon)
-
     st.markdown(
         """<span style='
         color: #20265A;
@@ -84,28 +134,18 @@ def main():
         unsafe_allow_html=True,
     )
 
-    st.markdown("# Reseplanerare")
-    desc = st.container(border=True)
-    desc.markdown(
-        "Här visas stopp och andra detaljer för en resa mellan två valda resmål"
-    )
-    col1, col2, col3 = st.columns([0.45, 0.1, 0.45])
-    start_name = col1.selectbox(
-        "Från",
-        [""] + stops_within_radius,
-        index=None,
-        placeholder="Stad/Hållplats/Station",
-    )
-    col2.markdown(
-        "<div style='text-align: center; margin-top: 10px; font-size: 40px;'>→</div>",
-        unsafe_allow_html=True,
-    )
-    end_name = col3.selectbox(
-        "Till",
-        [""] + stops_within_radius,
-        index=None,
-        placeholder="Stad/Hållplats/Station",
-    )
+    # Get search parameters from the search container.
+    search_params = get_full_search_parameters(stops_list)
+    start_name = search_params.get("start_station", "")
+    end_name = search_params.get("end_station", "")
+    date = search_params.get("date", datetime.today().strftime("%Y-%m-%d"))
+    dep_time = search_params.get("departure_time")  # May be a datetime or None.
+    arr_time = search_params.get("arrival_time")  # May be a datetime or None.
+
+    # Convert active time constraints to strings as expected by the API.
+    # (If a time constraint is not set, we let the API default be used.)
+    departure_str = dep_time.strftime("%H:%M") if dep_time is not None else None
+    arrival_str = arr_time.strftime("%H:%M") if arr_time is not None else None
 
     if start_name and not end_name:
         # **Show departure timetable if only start is selected**
@@ -118,14 +158,49 @@ def main():
             start_id = stop_dict[start_name]
             end_id = stop_dict[end_name]
 
-            # Fetch trip details
-            trip_details = resrobot.trips(origin_id=start_id, destination_id=end_id)
+            # Decide which time constraint to use for the API call.
+            # In this example, if both are provided, we assume the user wants:
+            #   - Depart after the departure time (if set) and/or
+            #   - Arrive before the arrival time (if set)
+            #
+            # Since the ResRobot API expects a single time and a flag (searchForArrival),
+            # we use the following logic:
+            #
+            # - If only departure time is set: use departure_str and searchForArrival=0.
+            # - If only arrival time is set: use arrival_str and searchForArrival=1.
+            # - If both are set: you may decide to prioritize one (here, we choose departure).
+            # - If neither is set: the API defaults will be used.
+            if departure_str and not arrival_str:
+                time_val = departure_str
+                search_for_arrival = 0
+            elif arrival_str and not departure_str:
+                time_val = arrival_str
+                search_for_arrival = 1
+            elif departure_str and arrival_str:
+                # If both constraints are provided, you could choose either.
+                # Here we decide to prioritize departure time.
+                time_val = departure_str
+                search_for_arrival = 0
+                st.sidebar.info(
+                    "Both departure and arrival times provided; using departure time for search."
+                )
+            else:
+                # Neither time constraint is provided, so use defaults.
+                time_val = datetime.now().strftime("%H:%M")
+                search_for_arrival = 0
 
-            if (
-                trip_details
-                and "Trip" in trip_details
-                and len(trip_details["Trip"]) > 0
-            ):
+            # Create a TripPlanner instance and query for trips.
+            trip_planner = TripPlanner(start_id, end_id)
+            trip_planner.trip_data = trip_planner.resrobot.trips(
+                origin_id=start_id,
+                destination_id=end_id,
+                date=date,
+                time=time_val,
+                searchForArrival=search_for_arrival,
+            )
+            trip_planner.extract_route_with_transfers()
+
+            if trip_planner and trip_planner.route_legs:
                 sidecol1, sidecol2, sidecol3, sidecol4 = st.sidebar.columns(
                     4, vertical_alignment="top"
                 )
@@ -146,10 +221,23 @@ def main():
                 )
                 cur_time = datetime.now()
                 button_key = 0
-                for trip in trip_details["Trip"]:
+                for trip in trip_planner.trip_data.get("Trip", []):
                     legs = trip["LegList"]["Leg"]
                     if isinstance(legs, dict):  # Handle single-leg trips
                         legs = [legs]
+                    stops = []
+                    for leg in legs:
+                        if "Stops" in leg:
+                            stops += leg["Stops"]["Stop"]
+
+                    route_detailed = " ➔ ".join(
+                        [
+                            stop["name"].split(" (")[0]
+                            + ": "
+                            + stop.get("depTime", stop.get("arrTime", "N/A"))
+                            for stop in stops
+                        ]
+                    )
 
                     # Extract trip details
                     departure_time = legs[0]["Origin"]["time"]
@@ -180,25 +268,24 @@ def main():
                         travel_time.seconds // 3600,
                         travel_time.seconds // 60 % 60,
                     )
-
+                    transport_name = legs[0]["Product"][0].get("name", "")
                     transport_number = legs[0]["Product"][0].get(
                         "num", legs[0]["Product"][0].get("name", "N/A")
                     )
-                    transport_icon = (
-                        "🚆" if "Tåg" in legs[0]["Product"][0].get("name", "") else "🚍"
-                    )
-                    route_detailed = " > ".join(
-                        [
-                            leg["Destination"]["name"].split(" (")[0]
-                            + ": "
-                            + leg["Destination"]["time"]
-                            for leg in legs
-                        ]
-                    )
-
-                    complete_detailed = (
-                        f"{start_name}: {departure_time} > {route_detailed}"
-                    )
+                    transport_icon = "N/A"
+                    icons = ["🚆", "🚍", "🚊", "🚇", "🚶", "🚄", "🚄"]
+                    transport_types = [
+                        "Tåg",
+                        "Buss",
+                        "Spårväg",
+                        "Tunnelbana",
+                        "Promenad",
+                        "Snabbtåg",
+                        "Express",
+                    ]
+                    for i, t in zip(icons, transport_types):
+                        if t in transport_name:
+                            transport_icon = i
 
                     cont = st.sidebar.container(border=True)
                     tempcol1, tempcol2, tempcol3, tempcol4 = cont.columns(
@@ -215,11 +302,11 @@ def main():
                     tempcol3.markdown(f"⏳ {hours}h{minutes}m", unsafe_allow_html=True)
                     with tempcol4.popover("Info", use_container_width=True):
                         st.header("Resedetaljer")
-                        st.write(f"{transport_icon} {transport_number} mot {end_name}")
-                        st.markdown(complete_detailed)
+                        st.write(f"{transport_icon} {transport_name} mot {end_name}")
+                        st.markdown(route_detailed)
                         st.button("Välj resa", key=f"{button_key}")
                     button_key += 1
-
+                generate_and_display_map(trip_planner)
             else:
                 st.sidebar.warning("No valid trips found.")
 
