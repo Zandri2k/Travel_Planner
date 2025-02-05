@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import streamlit as st
 
@@ -36,20 +36,40 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
             if isinstance(departures_data, dict)
             else []
         )
-
-        st.sidebar.subheader(f"Resor från {start_name}")
-        sidecol1, sidecol2, sidecol3, sidecol4 = st.sidebar.columns(
-            4, vertical_alignment="top"
+        st.sidebar.subheader(
+            f"Resor från {start_name}\n{format(datetime.now(), '%H:%M:%S')} - {format(datetime.now() + timedelta(hours=1), '%H:%M:%S')}"  # noqa: E501
         )
-        sidecol1.markdown("Linje")
-        sidecol2.markdown("Avgår om")
-        sidecol3.markdown("Restid")
-        sidecol4.markdown("<div style='height: 35px'></div>", unsafe_allow_html=True)
+        (
+            sidecol1,
+            sidecol2,
+            sidecol3,
+        ) = st.sidebar.columns([0.2, 0.29, 0.31], vertical_alignment="top")
+        sidecol1.markdown(
+            '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Linje</div>',
+            unsafe_allow_html=True,
+        )
+        sidecol2.markdown(
+            '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Avgår om</div>',
+            unsafe_allow_html=True,
+        )
+        sidecol3.markdown("<div style='height: 35px'></div>", unsafe_allow_html=True)
         table_cont = st.sidebar.container(height=520, border=False)
         for dep in departures:
-            transport_number = dep.get("ProductAtStop", {}).get("num", "N/A")
+            transport_number = dep.get("ProductAtStop", {}).get(
+                "num", dep.get("ProductAtStop", {}).get("name", "N/A")
+            )
             departure_time = dep.get("time", "N/A")
             final_destination = clean_location_name(dep.get("direction", "Unknown"))
+            stops = dep["Stops"]["Stop"]
+
+            route_detailed = " ➔ ".join(
+                [
+                    stop["name"].split(" (")[0]
+                    + ": "
+                    + stop.get("depTime", stop.get("arrTime", "N/A"))
+                    for stop in stops
+                ]
+            )
 
             t1 = datetime.strptime(departure_time, "%H:%M:%S")
             cur_time = datetime.now()
@@ -71,9 +91,21 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
             else:
                 wait = f"{hours}h{minutes}m"
 
-            transport_icon = (
-                "🚆" if "Tåg" in dep.get("ProductAtStop", {}).get("name", "") else "🚍"
-            )
+            transport_name = dep.get("ProductAtStop", {}).get("name", "N/A")
+            transport_icon = "N/A"
+            icons = ["🚆", "🚍", "🚊", "🚇", "🚶", "🚄", "🚄"]
+            transport_types = [
+                "Tåg",
+                "Buss",
+                "Spårväg",
+                "Tunnelbana",
+                "Promenad",
+                "Snabbtåg",
+                "Express",
+            ]
+            for i, t in zip(icons, transport_types):
+                if t in transport_name:
+                    transport_icon = i
             st.markdown(
                 """
             <style>
@@ -93,68 +125,14 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
                 unsafe_allow_html=True,
             )
             with tempcol3.popover("Info"):
-                st.write(
-                    f"{transport_icon} {transport_number} → ⏳ {departure_time} {final_destination}"
-                )
+                st.header("Resedetaljer")
+                st.write(f"{transport_icon} {transport_number} mot {final_destination}")
+                st.markdown(route_detailed)
 
         return  # Stop execution here if no end stop selected
 
     # **CASE 2: Both Start & End Stop Selected → Hide departures and show trips**
     st.sidebar.empty()  # **Clear the sidebar** before switching to `trips()`
-
-    end_row = stops_df[stops_df["stop_name"] == end_name]
-    if end_row.empty:
-        st.sidebar.error("Error: Selected end stop not found in dataset.")
-        return
-
-    end_id = end_row.iloc[0]["stop_id"]  # Extract end stop_id
-
-    try:
-        trips_data = resrobot.trips(origin_id=start_id, destination_id=end_id)
-        if not isinstance(trips_data, dict) or "Trip" not in trips_data:
-            st.sidebar.warning("No valid trips found.")
-            return
-
-        trips = trips_data["Trip"]
-        if isinstance(trips, dict):  # Handle single-trip case
-            trips = [trips]
-
-        st.sidebar.subheader(f"Trips from {start_name} → {end_name}")
-
-        for trip in trips:
-            try:
-                # Build the A > B > C route format without suffixes
-                route_path = [clean_location_name(trip["Origin"]["name"])]
-                for leg in trip["LegList"]["Leg"]:
-                    route_path.append(clean_location_name(leg["Destination"]["name"]))
-                route_string = " > ".join(route_path)
-
-                # Extract transport details from the first leg
-                first_leg = trip["LegList"]["Leg"][0]
-                transport_info = first_leg.get("Product", [{}])[
-                    0
-                ]  # First transport entry
-                transport_number = transport_info.get("num", "N/A")
-
-                # Extract departure and arrival details
-                departure_time = first_leg["Origin"]["time"]
-                arrival_time = first_leg["Destination"]["time"]
-
-                # Determine transport type icon
-                transport_icon = (
-                    "🚆" if "Tåg" in transport_info.get("name", "") else "🚍"
-                )
-
-                # Display in sidebar
-                st.sidebar.markdown(
-                    f"{transport_icon} {transport_number} → ⏳ {departure_time} - {arrival_time} → {route_string}"
-                )
-
-            except KeyError:
-                st.sidebar.warning("Some trip details are missing.")
-
-    except Exception as e:
-        st.sidebar.error(f"Error fetching trip details: {e}")
 
 
 # another test comment
