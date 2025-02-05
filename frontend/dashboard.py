@@ -223,6 +223,8 @@ def main():
                 button_key = 0
                 for trip in trip_planner.trip_data.get("Trip", []):
                     legs = trip["LegList"]["Leg"]
+                    changes = len(legs) - 1
+                    print(changes)
                     if isinstance(legs, dict):  # Handle single-leg trips
                         legs = [legs]
                     stops = []
@@ -304,8 +306,20 @@ def main():
                         st.header("Resedetaljer")
                         st.write(f"{transport_icon} {transport_name} mot {end_name}")
                         st.markdown(route_detailed)
-                        st.button("Välj resa", key=f"{button_key}")
-                    button_key += 1
+                        if st.button("Välj resa", key=f"select_trip_{button_key}"):
+                            st.session_state.selected_trip = {
+                                "transport_icon": transport_icon,
+                                "transport_number": transport_number,
+                                "departure_time": departure_time,
+                                "arrival_time": arrival_time,
+                                "route": route_detailed,
+                                "stops": stops,
+                                "changes": changes,
+                            }
+
+                            st.rerun()  # Refresh
+                        button_key += 1
+
                 generate_and_display_map(trip_planner)
             else:
                 st.sidebar.warning("No valid trips found.")
@@ -314,6 +328,33 @@ def main():
             st.sidebar.error("Error: Could not find stop IDs. Please check stop names.")
         except Exception as e:
             st.sidebar.error(f"An error occurred while fetching trip details: {e}")
+
+        # Details of the chosen trip
+    if "selected_trip" in st.session_state and st.session_state.selected_trip:
+        selected = st.session_state.selected_trip
+
+        with st.container(border=True):
+            st.subheader(f"📌Tåg mot {end_name}")
+
+            st.divider()  # Adds separation
+            st.write(f"**{selected['transport_icon']} {selected['transport_number']}**")
+            st.write(
+                f"⏳ Avgång: {selected['departure_time']} | 🏁 Ankomst: {selected['arrival_time']}"
+            )
+
+            st.write(f"Antal stop:{len(selected['stops']) -1}")
+            st.write(f"Antal byten:{selected['changes']}")
+
+            route_detailed = [stop["name"].split(" (")[0] for stop in stops]
+            list_of_stops = st.selectbox("Visa alla stop", route_detailed)
+            st.write(f"Valt stop: {list_of_stops}")
+
+        # Reset button to clear the selection
+        if st.button("❌ Avbryt vald resa"):
+            st.session_state.start_name = ""
+            st.session_state.end_name = ""
+            st.session_state.selected_trip = None
+            st.rerun()
 
 
 if __name__ == "__main__":
