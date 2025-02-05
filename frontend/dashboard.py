@@ -6,6 +6,7 @@ import streamlit as st
 
 from backend.connect_to_api import ResRobot
 from backend.trips import TripPlanner  # Assumes TripPlanner uses ResRobot.trips()
+from frontend.overview import show_trip_details  # ✅ Import the new container
 
 # Import the new search container.
 from frontend.search_container import get_full_search_parameters
@@ -188,6 +189,16 @@ def main():
                 # Neither time constraint is provided, so use defaults.
                 time_val = datetime.now().strftime("%H:%M")
                 search_for_arrival = 0
+
+            with st.container(border=True):
+                st.subheader("Start")  #
+                show_trip_details(
+                    origin_id=start_id,
+                    destination_id=end_id,
+                    date=date,
+                    time=time_val,
+                    searchForArrival=search_for_arrival,
+                )
 
             # Create a TripPlanner instance and query for trips.
             trip_planner = TripPlanner(start_id, end_id)

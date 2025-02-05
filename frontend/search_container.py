@@ -91,15 +91,6 @@ def get_full_search_parameters(
             params["start_station"] = start_station
             params["end_station"] = end_station
 
-            # --- Lower Section: Date and Time Settings ---
-            st.markdown(
-                """<span style='
-            font-size: 30px;
-            font-weight: bold'>Tidsinställningar</span>
-            """,
-                unsafe_allow_html=True,
-            )
-
             # Date Input: Only allow dates from today until the end of the current month.
             today_date = datetime.today().date()
             current_year = today_date.year
