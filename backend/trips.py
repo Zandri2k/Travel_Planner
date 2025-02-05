@@ -142,6 +142,15 @@ class TripPlanner:
                     f"🚨 No railway path found between ({start_lat}, {start_lon}) and ({end_lat}, {end_lon})"
                 )
 
+            folium.Marker(
+                [start_lat, start_lon],
+                popup=f"Stop {i}",
+                icon=folium.Icon(color="blue"),
+            ).add_to(map_obj)
+            folium.Marker(
+                [end_lat, end_lon], popup=f"Stop {i+1}", icon=folium.Icon(color="red")
+            ).add_to(map_obj)
+
     def plot_road_routes(self, map_obj, road_stations):
         """Plots road routes using OSRM instead of OSMNx querying."""
 
@@ -193,7 +202,7 @@ class TripPlanner:
             # ✅ Plot the OSRM route in Red
             folium.PolyLine(
                 route_coords,
-                color="red",
+                color="darkgreen",
                 weight=5,
                 opacity=0.8,
                 tooltip=f"Road Route {i}-{i+1}",
@@ -293,13 +302,11 @@ class TripPlanner:
 
             folium.Marker(
                 [start_lat, start_lon],
-                popup=f"Tram Stop {i}",
+                popup=f"Stop {i}",
                 icon=folium.Icon(color="purple"),
             ).add_to(map_obj)
             folium.Marker(
-                [end_lat, end_lon],
-                popup=f"Tram Stop {i+1}",
-                icon=folium.Icon(color="purple"),
+                [end_lat, end_lon], popup=f"Stop {i+1}", icon=folium.Icon(color="red")
             ).add_to(map_obj)
 
         print("✅ Tram routes plotted successfully!")
@@ -314,7 +321,7 @@ class TripPlanner:
             end_lat, end_lon, _ = stations[subway_stations[i + 1][0]]
 
             # ✅ Dynamic buffer size (to ensure underground rail coverage)
-            buffer_size = 0.008  # Approx 800m buffer (since subways curve underground)
+            buffer_size = 0.02  # Approx 800m buffer (since subways curve underground)
 
             polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
             buffered_polyline = polyline.buffer(buffer_size)
@@ -425,7 +432,6 @@ class TripPlanner:
         polyline = LineString([(start[1], start[0]), (end[1], end[0])])
         buffered_polyline = polyline.buffer(0.005)
 
-        self.add_buffer_visualization(map_obj, buffered_polyline, color="yellow")
         print(f"🚶 Walking from {start} to {end}")
 
         # Fetch pedestrian paths with multiple relevant tags
