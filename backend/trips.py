@@ -52,206 +52,97 @@ class TripPlanner:
         map_center = [self.route_legs[0][1][0][1], self.route_legs[0][1][0][2]]
         self.map_route = folium.Map(location=map_center, zoom_start=10)
 
-    def plot_train_routes(self, train_stations):
+    def debug_plot_query_area(
+        map_obj, start_lat, start_lon, end_lat, end_lon, buffer_size, segment_index
+    ):
+        """Visualizes the OSMNX query area on the map for debugging."""
+
+        # ✅ Create the buffer corridor
+        polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
+        buffered_polyline = polyline.buffer(buffer_size)
+
+        # ✅ Add the buffer zone to the map (Yellow transparent overlay)
+        folium.GeoJson(
+            buffered_polyline,
+            style_function=lambda x: {
+                "fillColor": "yellow",
+                "color": "black",
+                "weight": 1,
+                "fillOpacity": 0.3,
+            },
+            tooltip=f"Query Area {segment_index}",
+        ).add_to(map_obj)
+
+        # ✅ Mark the start & end points for debugging
+        folium.Marker(
+            [start_lat, start_lon],
+            popup=f"Start {segment_index}",
+            icon=folium.Icon(color="red"),
+        ).add_to(map_obj)
+
+        folium.Marker(
+            [end_lat, end_lon],
+            popup=f"End {segment_index}",
+            icon=folium.Icon(color="green"),
+        ).add_to(map_obj)
+
+        print(
+            f"🛠 Debug: Plotted query buffer for segment {segment_index} (buffer={buffer_size:.4f})"
+        )
+
+    def plot_train_routes(self, map_obj, train_stations):
         """Plots train routes using railway data from OSM."""
-
-        for i in range(len(train_stations) - 1):
-            start_id, start_lat, start_lon, start_name = train_stations[i]
-            end_id, end_lat, end_lon, end_name = train_stations[i + 1]
-
-            # 🔍 **Print for Debugging**
-            print(
-                f"🛤️ Processing Segment {i}: {start_name} ({start_lat}, {start_lon}) → {end_name} ({end_lat}, {end_lon})"  # noqa: E501
-            )
-
-            # ✅ Check if any station is missing lat/lon values
-            if None in [start_lat, start_lon, end_lat, end_lon]:
-                print(
-                    f"🚨 Skipping segment {i}: Missing coordinates for {start_name} or {end_name}"
-                )
-                continue
-
-            # ✅ Check if it's trying to plot a duplicate station
-            if (start_lat, start_lon) == (end_lat, end_lon):
-                print(
-                    f"⚠️ Skipping segment {i}: Start and end stations are the same ({start_name})"
-                )
-                continue
-
-            # ✅ Ensure a minimum buffer size
-            segment_distance = Point(start_lon, start_lat).distance(
-                Point(end_lon, end_lat)
-            )
-            buffer_size = max(0.005, min(0.15, segment_distance * 0.02))
-
-            polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
-            buffered_polyline = polyline.buffer(buffer_size)
-
-            print(f"🚆 Querying railway paths with buffer {buffer_size:.4f} degrees.")
-
-            try:
-                railways = ox.features_from_polygon(
-                    buffered_polyline, tags={"railway": "rail"}
-                )
-            except Exception as e:
-                print(f"⚠️ Error fetching railway data: {e}")
-                continue  # Skip if the query fails
-
-            # ✅ Build Graph (Ensure fully connected components)
-            G = nx.Graph()
-            for _, row in railways.iterrows():
-                if row.geometry.geom_type == "LineString":
-                    coords = list(row.geometry.coords)
-                    for j in range(len(coords) - 1):
-                        lon1, lat1 = coords[j]
-                        lon2, lat2 = coords[j + 1]
-                        dist = Point(lon1, lat1).distance(Point(lon2, lat2))
-                        G.add_edge((lon1, lat1), (lon2, lat2), weight=dist)
-
-            if G.number_of_nodes() == 0:
-                print(f"🚨 No railway data found for segment {i}.")
-                continue
-
-            # ✅ Find the **largest connected component** (to prevent disjoint paths)
-            largest_cc = max(nx.connected_components(G), key=len)
-            G = G.subgraph(largest_cc).copy()
-
-            try:
-                # ✅ Find nearest nodes and check connectivity
-                start_node = min(
-                    G.nodes,
-                    key=lambda node: Point(node).distance(Point(start_lon, start_lat)),
-                )
-                end_node = min(
-                    G.nodes,
-                    key=lambda node: Point(node).distance(Point(end_lon, end_lat)),
-                )
-
-                if nx.has_path(G, start_node, end_node):
-                    route = nx.shortest_path(G, start_node, end_node, weight="weight")
-                    route_coords = [
-                        (lat, lon) for lon, lat in route
-                    ]  # ✅ Ensure correct coordinate format
-
-                    # ✅ Plot the train route in **consistent blue**
-                    folium.PolyLine(
-                        route_coords,
-                        color="blue",
-                        weight=5,
-                        opacity=1,
-                        tooltip="Train Route",
-                    ).add_to(self.map_route)
-                    print(f"✅ Successfully plotted train segment {i}")
-
-                else:
-                    print(f"🚨 No connected railway path found! Skipping segment {i}")
-
-            except nx.NetworkXNoPath:
-                print(
-                    f"🚨 No railway path found between ({start_lat}, {start_lon}) and ({end_lat}, {end_lon})"
-                )
-
-    def plot_long_distance_train_routes(self, train_stations):
-        """Plots long-distance train routes using railway data from OSM without forced switching."""
-
         stations = {stop[0]: (stop[1], stop[2], stop[3]) for stop in train_stations}
 
         for i in range(len(train_stations) - 1):
             start_lat, start_lon, _ = stations[train_stations[i][0]]
             end_lat, end_lon, _ = stations[train_stations[i + 1][0]]
 
-            # ✅ Dynamically adjust buffer size based on segment distance
-            segment_distance = Point(start_lon, start_lat).distance(
-                Point(end_lon, end_lat)
-            )
-            buffer_size = min(
-                0.20, segment_distance * 0.05
-            )  # Increased max buffer for long distances
-
             polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
-            buffered_polyline = polyline.buffer(buffer_size)
+            buffered_polyline = polyline.buffer(0.25)
 
-            print(
-                f"🚄 Querying long-distance railway paths with buffer {buffer_size:.4f} degrees."
+            print(f"🚆 Buffered Area for Train Segment: {buffered_polyline}")
+
+            railways = ox.features_from_polygon(
+                buffered_polyline, tags={"railway": "rail"}
             )
-
-            try:
-                railways = ox.features_from_polygon(
-                    buffered_polyline, tags={"railway": "rail"}
-                )
-            except Exception as e:
-                print(f"⚠️ Error fetching railway data: {e}")
-                continue  # Skip if the query fails
-
-            # ✅ Build Graph (Ensure fully connected components)
             G = nx.Graph()
+
             for _, row in railways.iterrows():
                 if row.geometry.geom_type == "LineString":
                     coords = list(row.geometry.coords)
                     for j in range(len(coords) - 1):
-                        lon1, lat1 = coords[j]
-                        lon2, lat2 = coords[j + 1]
-                        dist = Point(lon1, lat1).distance(Point(lon2, lat2))
-                        G.add_edge((lon1, lat1), (lon2, lat2), weight=dist)
-
-            if G.number_of_nodes() == 0:
-                print(f"🚨 No railway data found for segment {i}. Skipping.")
-                continue
-
-            # ✅ Find the **largest connected component** (to prevent disjoint paths)
-            largest_cc = max(nx.connected_components(G), key=len)
-            G = G.subgraph(largest_cc).copy()
+                        lat1, lon1 = coords[j][1], coords[j][0]
+                        lat2, lon2 = coords[j + 1][1], coords[j + 1][0]
+                        dist = Point(lat1, lon1).distance(Point(lat2, lon2))
+                        G.add_edge((lat1, lon1), (lat2, lon2), weight=dist)
 
             try:
-                # ✅ Find nearest nodes and check connectivity
                 start_node = min(
                     G.nodes,
-                    key=lambda node: Point(node).distance(Point(start_lon, start_lat)),
+                    key=lambda node: Point(node).distance(Point(start_lat, start_lon)),
                 )
                 end_node = min(
                     G.nodes,
-                    key=lambda node: Point(node).distance(Point(end_lon, end_lat)),
+                    key=lambda node: Point(node).distance(Point(end_lat, end_lon)),
                 )
 
-                if nx.has_path(G, start_node, end_node):
-                    route = nx.shortest_path(G, start_node, end_node, weight="weight")
-                    route_coords = [
-                        (lat, lon) for lon, lat in route
-                    ]  # ✅ Ensure correct coordinate format
-
-                    # ✅ Plot the train route in **consistent dark blue**
-                    folium.PolyLine(
-                        route_coords,
-                        color="darkblue",
-                        weight=5,
-                        opacity=1,
-                        tooltip="Long-Distance Train Route",
-                    ).add_to(self.map_route)
-                    print(f"✅ Successfully plotted long-distance train segment {i}")
-
-                else:
-                    print(f"🚨 No connected railway path found! Skipping segment {i}")
+                route = nx.shortest_path(G, start_node, end_node, weight="weight")
+                route_coords = list(route)
+                folium.PolyLine(
+                    route_coords,
+                    color="blue",
+                    weight=5,
+                    opacity=1,
+                    tooltip="Train Route",
+                ).add_to(map_obj)
 
             except nx.NetworkXNoPath:
                 print(
                     f"🚨 No railway path found between ({start_lat}, {start_lon}) and ({end_lat}, {end_lon})"
                 )
 
-            # ✅ Plot Start & End Train Stations
-            folium.Marker(
-                [start_lat, start_lon],
-                popup=f"Train Station {i}",
-                icon=folium.Icon(color="darkblue"),
-            ).add_to(self.map_route)
-            folium.Marker(
-                [end_lat, end_lon],
-                popup=f"Train Station {i+1}",
-                icon=folium.Icon(color="darkblue"),
-            ).add_to(self.map_route)
-
-        print("✅ Long-distance train routes plotted successfully!")
-
-    def plot_road_routes(self, road_stations):
+    def plot_road_routes(self, map_obj, road_stations):
         """Plots road routes using OSRM instead of OSMNx querying."""
 
         stations = {stop[0]: (stop[1], stop[2], stop[3]) for stop in road_stations}
@@ -294,10 +185,10 @@ class TripPlanner:
             # ✅ Plot Start & End Markers
             folium.Marker(
                 start, popup=f"Stop {i}", icon=folium.Icon(color="green")
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
             folium.Marker(
                 end, popup=f"Stop {i+1}", icon=folium.Icon(color="red")
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
 
             # ✅ Plot the OSRM route in Red
             folium.PolyLine(
@@ -306,11 +197,11 @@ class TripPlanner:
                 weight=5,
                 opacity=0.8,
                 tooltip=f"Road Route {i}-{i+1}",
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
 
             print(f"✅ Successfully plotted segment {i} on the map!\n")
 
-    def plot_tram_routes(self, tram_stations):
+    def plot_tram_routes(self, map_obj, tram_stations):
         """Plots tram routes using OSM tramway data with better path accuracy."""
 
         stations = {stop[0]: (stop[1], stop[2], stop[3]) for stop in tram_stations}
@@ -319,14 +210,12 @@ class TripPlanner:
             start_lat, start_lon, _ = stations[tram_stations[i][0]]
             end_lat, end_lon, _ = stations[tram_stations[i + 1][0]]
 
-            buffer_size = 0.005  # Approx 500m buffer
+            buffer_size = 0.05  # Approx 500m buffer
 
             polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
             buffered_polyline = polyline.buffer(buffer_size)
 
-            print(
-                f"\U0001F68B Querying tram paths with buffer {buffer_size:.4f} degrees."
-            )
+            print(f"🚋 Querying tram paths with buffer {buffer_size:.4f} degrees.")
 
             try:
                 tram_data = ox.features_from_polygon(
@@ -392,7 +281,7 @@ class TripPlanner:
                         weight=5,
                         opacity=0.8,
                         tooltip="Tram Route",
-                    ).add_to(self.map_route)
+                    ).add_to(map_obj)
                     print(f"✅ Successfully plotted tram segment {i}")
                 else:
                     print(f"🚨 No connected tramway path found! Skipping segment {i}")
@@ -406,16 +295,16 @@ class TripPlanner:
                 [start_lat, start_lon],
                 popup=f"Tram Stop {i}",
                 icon=folium.Icon(color="purple"),
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
             folium.Marker(
                 [end_lat, end_lon],
                 popup=f"Tram Stop {i+1}",
                 icon=folium.Icon(color="purple"),
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
 
         print("✅ Tram routes plotted successfully!")
 
-    def plot_subway_routes(self, subway_stations):
+    def plot_subway_routes(self, map_obj, subway_stations):
         """Plots subway (metro) routes using OSM data with optimal pathing."""
 
         stations = {stop[0]: (stop[1], stop[2], stop[3]) for stop in subway_stations}
@@ -424,14 +313,13 @@ class TripPlanner:
             start_lat, start_lon, _ = stations[subway_stations[i][0]]
             end_lat, end_lon, _ = stations[subway_stations[i + 1][0]]
 
+            # ✅ Dynamic buffer size (to ensure underground rail coverage)
             buffer_size = 0.008  # Approx 800m buffer (since subways curve underground)
 
             polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
             buffered_polyline = polyline.buffer(buffer_size)
 
-            print(
-                f"\U0001F687 Querying subway paths with buffer {buffer_size:.4f} degrees."
-            )
+            print(f"🚇 Querying subway paths with buffer {buffer_size:.4f} degrees.")
 
             try:
                 subway_data = ox.features_from_polygon(
@@ -441,9 +329,10 @@ class TripPlanner:
                 print(f"⚠️ Error fetching subway data: {e}")
                 continue
 
+            # ✅ Ensure subway paths exist
             if subway_data.empty:
                 print(f"❌ No subway paths found for segment {i}. Expanding buffer...")
-                buffer_size *= 2
+                buffer_size *= 2  # Increase buffer size for underground paths
                 buffered_polyline = polyline.buffer(buffer_size)
 
                 try:
@@ -459,6 +348,7 @@ class TripPlanner:
                     )
                     continue
 
+            # ✅ Build a NetworkX graph for subway paths
             G = nx.Graph()
             for _, row in subway_data.iterrows():
                 if row.geometry.geom_type == "LineString":
@@ -470,13 +360,15 @@ class TripPlanner:
                         G.add_edge((lon1, lat1), (lon2, lat2), weight=dist)
 
             if G.number_of_nodes() == 0:
-                print(f"\U0001F6A8 No connected subway tracks found for segment {i}.")
+                print(f"🚨 No connected subway tracks found for segment {i}.")
                 continue
 
+            # ✅ Extract the largest connected subway network
             largest_cc = max(nx.connected_components(G), key=len)
             G = G.subgraph(largest_cc).copy()
 
             try:
+                # ✅ Find the closest nodes for subway travel
                 start_node = min(
                     G.nodes,
                     key=lambda node: Point(node).distance(Point(start_lon, start_lat)),
@@ -490,38 +382,39 @@ class TripPlanner:
                     route = nx.shortest_path(G, start_node, end_node, weight="weight")
                     route_coords = [(lat, lon) for lon, lat in route]
 
+                    # ✅ Plot subway route in **Dark Blue**
                     folium.PolyLine(
                         route_coords,
                         color="darkblue",
                         weight=5,
                         opacity=0.8,
                         tooltip="Subway Route",
-                    ).add_to(self.map_route)
+                    ).add_to(map_obj)
                     print(f"✅ Successfully plotted subway segment {i}")
+
                 else:
-                    print(
-                        f"\U0001F6A8 No connected subway path found! Skipping segment {i}"
-                    )
+                    print(f"🚨 No connected subway path found! Skipping segment {i}")
 
             except nx.NetworkXNoPath:
                 print(
-                    f"\U0001F6A8 No subway path found between ({start_lat}, {start_lon}) and ({end_lat}, {end_lon})"
+                    f"🚨 No subway path found between ({start_lat}, {start_lon}) and ({end_lat}, {end_lon})"
                 )
 
+            # ✅ Plot Subway Stations
             folium.Marker(
                 [start_lat, start_lon],
                 popup=f"Subway Stop {i}",
                 icon=folium.Icon(color="darkblue"),
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
             folium.Marker(
                 [end_lat, end_lon],
                 popup=f"Subway Stop {i+1}",
                 icon=folium.Icon(color="darkblue"),
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
 
         print("✅ Subway routes plotted successfully!")
 
-    def plot_walking_route(self, start, end):
+    def plot_walking_route(self, map_obj, start, end):
         """Plots the shortest walking path using a combined OSM pedestrian network."""
         if start == end:
             print(
@@ -532,8 +425,10 @@ class TripPlanner:
         polyline = LineString([(start[1], start[0]), (end[1], end[0])])
         buffered_polyline = polyline.buffer(0.005)
 
+        self.add_buffer_visualization(map_obj, buffered_polyline, color="yellow")
         print(f"🚶 Walking from {start} to {end}")
 
+        # Fetch pedestrian paths with multiple relevant tags
         pedestrian_tags = {
             "highway": ["footway", "pedestrian", "path", "track"],
             "sidewalk": "yes",
@@ -553,6 +448,7 @@ class TripPlanner:
                 f"✅ Found {len(walking_features)} pedestrian paths. Combining networks..."
             )
 
+            # Convert pedestrian paths into a graph
             G = nx.Graph()
             for _, row in walking_features.iterrows():
                 if row.geometry.geom_type == "LineString":
@@ -563,6 +459,7 @@ class TripPlanner:
                         dist = LineString([coords[i], coords[i + 1]]).length
                         G.add_edge((lat1, lon1), (lat2, lon2), weight=dist)
 
+            # Find nearest nodes in the combined pedestrian network
             start_node = min(G.nodes, key=lambda node: LineString([node, start]).length)
             end_node = min(G.nodes, key=lambda node: LineString([node, end]).length)
 
@@ -574,49 +471,63 @@ class TripPlanner:
 
             print(f"🔎 Found nearest nodes: {start_node} -> {end_node}")
 
+            # Compute the shortest path
             route = nx.shortest_path(G, start_node, end_node, weight="weight")
             route_coords = [(node[0], node[1]) for node in route]
 
+            # Plot the walking route
             folium.PolyLine(
                 route_coords,
                 color="green",
                 weight=5,
                 opacity=1,
                 tooltip="Walking Route",
-            ).add_to(self.map_route)
+            ).add_to(map_obj)
             print(f"✅ Walking path plotted from {start} to {end}")
 
         except Exception as e:
             print(f"🚨 Error processing walking path: {e}")
 
+    def add_buffer_visualization(self, map_obj, buffer_geom, color="yellow"):
+        """Ensures the visual buffer correctly represents the queried area."""
+        folium.GeoJson(
+            buffer_geom,
+            style_function=lambda x: {
+                "fillColor": color,
+                "color": color,
+                "weight": 2,
+                "fillOpacity": 0.4,
+            },
+        ).add_to(map_obj)
+
     def plot_trip(self):
         self.initialize_map()
         for transport_type, stations in self.route_legs:
-            if transport_type == "4":
+            if transport_type in ["1", "3", "4"]:
                 self.plot_train_routes(stations)
             elif transport_type in ["2", "7"]:
                 self.plot_road_routes(stations)
-            elif transport_type == "3":
-                self.plot_long_distance_train_routes(stations)
             elif transport_type == "6":
                 self.plot_tram_routes(stations)
             elif transport_type == "5":
                 self.plot_subway_routes(stations)
             elif transport_type == "unknown" and len(self.route_legs) > 1:
-                start = self.route_legs[-2][1][-1][1:3]
+                start = self.route_legs[-1][1][-1][1:3]
                 end = stations[-1][1:3]
                 self.plot_walking_route(start, end)
 
-        # ✅ Add station markers
+        # ✅ Add station markers separately to ensure they are always plotted
         for _, stations in self.route_legs:
             for stop in stations:
-                folium.Marker(
-                    location=[stop[1], stop[2]],
-                    popup=stop[3],
-                    icon=folium.Icon(color="green"),
-                ).add_to(self.map_route)
+                if stop[1] is not None and stop[2] is not None:
+                    print(f"📍 Adding marker: {stop[3]} at {stop[1]}, {stop[2]}")
+                    folium.Marker(
+                        location=[float(stop[1]), float(stop[2])],
+                        popup=stop[3],
+                        icon=folium.Icon(color="green"),
+                    ).add_to(self.map_route)
 
-        return self.map_route
+        return self.map_route  # ✅ Ensure map is returned
 
 
 if __name__ == "__main__":
