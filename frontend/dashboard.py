@@ -44,6 +44,10 @@ def get_trip_planner(start_name, end_name):
         return None
 
 
+def set_route(tp, t):
+    tp.pick_route_with_transfers(t)
+
+
 def generate_and_display_map(tp):
     if not tp:
         st.warning("❌ No trip data available.")
@@ -209,9 +213,9 @@ def main():
                 time=time_val,
                 searchForArrival=search_for_arrival,
             )
-            trip_planner.extract_route_with_transfers()
+            # trip_planner.extract_route_with_transfers()
 
-            if trip_planner and trip_planner.route_legs:
+            if trip_planner:
                 sidecol1, sidecol2, sidecol3, sidecol4 = st.sidebar.columns(
                     4, vertical_alignment="top"
                 )
@@ -315,8 +319,10 @@ def main():
                         st.header("Resedetaljer")
                         st.write(f"{transport_icon} {transport_name} mot {end_name}")
                         st.markdown(route_detailed)
-                        st.button("Välj resa", key=f"{button_key}")
+                        if st.button("Välj resa", key=f"{button_key}"):
+                            trip_planner.pick_route_with_transfers(trip)
                     button_key += 1
+            if trip_planner.route_legs:
                 generate_and_display_map(trip_planner)
             else:
                 st.sidebar.warning("No valid trips found.")

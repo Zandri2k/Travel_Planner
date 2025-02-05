@@ -48,6 +48,36 @@ class TripPlanner:
                 self.route_legs.append((transport_type, segment_stations))
         return self.route_legs
 
+    def pick_route_with_transfers(self, trip):
+        if "Trip" in self.trip_data and self.trip_data["Trip"]:
+            legs = trip["LegList"].get("Leg", [])
+            if isinstance(legs, dict):
+                legs = [legs]
+            for leg in legs:
+                transport_type = leg.get("Product", [{}])[0].get("catCode", "unknown")
+                origin = leg["Origin"]
+                destination = leg["Destination"]
+                stops = leg.get("Stops", {}).get("Stop", [])
+                if isinstance(stops, dict):
+                    stops = [stops]
+                segment_stations = (
+                    [(origin["extId"], origin["lat"], origin["lon"], origin["name"])]
+                    + [
+                        (stop["extId"], stop["lat"], stop["lon"], stop["name"])
+                        for stop in stops
+                    ]
+                    + [
+                        (
+                            destination["extId"],
+                            destination["lat"],
+                            destination["lon"],
+                            destination["name"],
+                        )
+                    ]
+                )
+                self.route_legs.append((transport_type, segment_stations))
+        return self.route_legs
+
     def initialize_map(self):
         map_center = [self.route_legs[0][1][0][1], self.route_legs[0][1][0][2]]
         self.map_route = folium.Map(location=map_center, zoom_start=10)
