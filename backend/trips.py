@@ -99,7 +99,7 @@ class TripPlanner:
             end_lat, end_lon, _ = stations[train_stations[i + 1][0]]
 
             polyline = LineString([(start_lon, start_lat), (end_lon, end_lat)])
-            buffered_polyline = polyline.buffer(0.25)
+            buffered_polyline = polyline.buffer(0.40)
 
             print(f"🚆 Buffered Area for Train Segment: {buffered_polyline}")
 
