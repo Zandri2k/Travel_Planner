@@ -6,7 +6,6 @@ import streamlit as st
 
 from backend.connect_to_api import ResRobot
 from backend.trips import TripPlanner  # Assumes TripPlanner uses ResRobot.trips()
-from frontend.overview import show_trip_details  # ✅ Import the new container
 
 # Import the new search container.
 from frontend.search_container import get_full_search_parameters
@@ -121,7 +120,7 @@ def main():
         """
     <style>
         section[data-testid="stSidebar"] {
-            width: 455px !important; # Set the width to your desired value
+            width: 450px !important; # Set the width to your desired value
         }
     </style>
     """,
@@ -194,16 +193,6 @@ def main():
                 time_val = datetime.now().strftime("%H:%M")
                 search_for_arrival = 0
 
-            with st.container(border=True):
-                st.subheader("Start")  #
-                show_trip_details(
-                    origin_id=start_id,
-                    destination_id=end_id,
-                    date=date,
-                    time=time_val,
-                    searchForArrival=search_for_arrival,
-                )
-
             # Create a TripPlanner instance and query for trips.
             trip_planner = TripPlanner(start_id, end_id)
             trip_planner.trip_data = trip_planner.resrobot.trips(
@@ -238,6 +227,7 @@ def main():
                 button_key = 0
                 for trip in trip_planner.trip_data.get("Trip", []):
                     legs = trip["LegList"]["Leg"]
+                    changes = len(legs) - 1
                     if isinstance(legs, dict):  # Handle single-leg trips
                         legs = [legs]
                     stops = []
@@ -304,7 +294,7 @@ def main():
 
                     cont = st.sidebar.container(border=True)
                     tempcol1, tempcol2, tempcol3, tempcol4 = cont.columns(
-                        [0.3, 0.2, 0.25, 0.25], vertical_alignment="center"
+                        [0.3, 0.2, 0.3, 0.2], vertical_alignment="center"
                     )
                     tempcol1.markdown(
                         f'<div style="margin-bottom: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ">{transport_icon} {transport_number}</div>',  # noqa: E501
@@ -314,18 +304,64 @@ def main():
                         f'<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">{wait}</div>',
                         unsafe_allow_html=True,
                     )
-                    tempcol3.markdown(f"⏳ {hours}h{minutes}m", unsafe_allow_html=True)
-                    with tempcol4.popover("Info", use_container_width=True):
+                    tempcol3.markdown(
+                        f'<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">⏳ {hours}h{minutes}m</div>',  # noqa: E501
+                        unsafe_allow_html=True,
+                    )
+                    with tempcol4.popover("", icon=":material/info:"):
                         st.header("Resedetaljer")
                         st.write(f"{transport_icon} {transport_name} mot {end_name}")
                         st.markdown(route_detailed)
                         if st.button("Välj resa", key=f"{button_key}"):
-                            trip_planner.pick_route_with_transfers(trip)
+                            st.session_state.selected_map = trip
+                            # trip_planner.pick_route_with_transfers(trip)
+                            st.session_state.selected_trip = {
+                                "transport_name": transport_name,
+                                "transport_icon": transport_icon,
+                                "transport_number": transport_number,
+                                "departure_time": departure_time,
+                                "arrival_time": arrival_time,
+                                "route": route_detailed,
+                                "stops": stops,
+                                "changes": changes,
+                            }
                     button_key += 1
-            if trip_planner.route_legs:
-                generate_and_display_map(trip_planner)
             else:
                 st.sidebar.warning("No valid trips found.")
+            if "selected_trip" in st.session_state and st.session_state.selected_trip:
+                trip_planner.pick_route_with_transfers(st.session_state.selected_map)
+                selected = st.session_state.selected_trip
+
+                with st.container(border=True):
+                    st.subheader(f"📌 {selected['transport_name']} mot {end_name}")
+
+                    st.divider()  # Adds separation
+                    st.write(
+                        f"⏳ Avgång: {selected['departure_time']} | 🏁 Ankomst: {selected['arrival_time']}"
+                    )
+
+                    st.write(f"Antal stop: {len(selected['stops']) -1}")
+                    st.write(f"Antal byten: {selected['changes']}")
+
+                    list_of_stops = [
+                        stop["name"].split(" (")[0] for stop in selected["stops"]
+                    ]
+
+                    with st.popover("Visa alla stop"):
+                        st.write(f"{stop}  \n" for stop in list_of_stops)
+
+                # Reset button to clear the selection
+                if st.button("❌ Avbryt vald resa"):
+                    st.session_state.start_name = ""
+                    st.session_state.end_name = ""
+                    st.session_state.selected_trip = None
+                    st.session_state.selected_map = None
+                    st.rerun()
+                with st.spinner("Planerar rutt..."):
+                    with st.expander(
+                        "Visa på karta", icon=":material/map:", expanded=True
+                    ):
+                        generate_and_display_map(trip_planner)
 
         except KeyError:
             st.sidebar.error("Error: Could not find stop IDs. Please check stop names.")
