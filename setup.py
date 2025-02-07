@@ -23,7 +23,7 @@ setup(
         "black",
     ],
     packages=find_packages(
-        ["backend", "frontend", "utils"], exclude=("test", "explorations")
+        include=("backend", "frontend", "utils"), exclude=("test", "explorations")
     ),
     entry_points={"console_scripts": ["dashboard = utils.run_dashboard:run_dashboard"]},
 )
