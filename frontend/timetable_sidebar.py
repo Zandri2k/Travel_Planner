@@ -43,7 +43,7 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
             sidecol1,
             sidecol2,
             sidecol3,
-        ) = st.sidebar.columns([0.2, 0.29, 0.31], vertical_alignment="top")
+        ) = st.sidebar.columns([0.2, 0.52, 0.28], vertical_alignment="top")
         sidecol1.markdown(
             '<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">Linje</div>',
             unsafe_allow_html=True,
@@ -116,7 +116,9 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
                 unsafe_allow_html=True,
             )
             cont = table_cont.container(border=True)
-            tempcol1, tempcol2, tempcol3 = cont.columns(3, vertical_alignment="center")
+            tempcol1, tempcol2, tempcol3 = cont.columns(
+                [0.4, 0.4, 0.2], vertical_alignment="center"
+            )
             tempcol1.markdown(
                 f"{transport_icon} {transport_number}", unsafe_allow_html=True
             )
@@ -124,7 +126,7 @@ def show_departure_timetable(resrobot, stops_df, start_name, end_name=None):
                 f'<div style="text-align: right; margin-bottom: 15px; margin-right: 10px">{wait}</div>',
                 unsafe_allow_html=True,
             )
-            with tempcol3.popover("Info"):
+            with tempcol3.popover("", icon=":material/info:"):
                 st.header("Resedetaljer")
                 st.write(f"{transport_icon} {transport_number} mot {final_destination}")
                 st.markdown(route_detailed)

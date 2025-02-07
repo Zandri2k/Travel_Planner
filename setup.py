@@ -22,6 +22,8 @@ setup(
         "flake8",
         "black",
     ],
-    packages=find_packages(exclude=("test*", "explorations")),
+    packages=find_packages(
+        ["backend", "frontend", "utils"], exclude=("test", "explorations")
+    ),
     entry_points={"console_scripts": ["dashboard = utils.run_dashboard:run_dashboard"]},
 )
