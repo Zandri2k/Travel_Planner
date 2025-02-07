@@ -14,13 +14,13 @@ from frontend.timetable_sidebar import show_departure_timetable
 # Initialize ResRobot
 resrobot = ResRobot()
 
-IMAGE_PATH = "../frontend/images"
+IMAGE_PATH = "frontend/images"
 light_logo = f"{IMAGE_PATH}/Resekollen_logo_700.png"
 dark_logo = f"{IMAGE_PATH}/Resekollen_logo_700_dark.png"
 
 
 @st.cache_data
-def load_stops(file_path="../data/stops.txt"):
+def load_stops(file_path="data/stops.txt"):
     """Load stop data from a local file."""
     columns = ["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"]
     return pd.read_csv(file_path, names=columns, header=0)

@@ -1,19 +1,19 @@
-import os
 from datetime import datetime
 
 import requests
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class ResRobot:
-    API_KEY = os.getenv("API_KEY")  # ResRobot2.1
-    API_KEY2 = os.getenv("API_KEY2")  # Traffikverket öppet API
-    API_KEY3 = os.getenv("API_KEY3")  # GTFS Sverige2
-    API_KEY4 = os.getenv("API_KEY4")  # GTFS Regional Static data
-    API_KEY5 = os.getenv("API_KEY5")  # GTFS3
-    API_KEY6 = os.getenv("API_KEY6")  # GoogleMaps
+    API_KEY = st.secrets["api"]["API_KEY"]  # ResRobot2.1
+    API_KEY2 = st.secrets["api"]["API_KEY2"]  # Traffikverket öppet API
+    API_KEY3 = st.secrets["api"]["API_KEY3"]  # GTFS Sverige2
+    API_KEY4 = st.secrets["api"]["API_KEY4"]  # GTFS Regional Static data
+    API_KEY5 = st.secrets["api"]["API_KEY5"]  # GTFS3
+    API_KEY6 = st.secrets["api"]["API_KEY6"]  # GoogleMaps
 
     def trips(
         self,
